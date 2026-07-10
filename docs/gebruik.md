@@ -14,7 +14,7 @@ In een `.mcp.json` van een repo of agent-omgeving:
   "mcpServers": {
     "conduction-docs": {
       "command": "uv",
-      "args": ["run", "--project", "/pad/naar/docs-mcp",
+      "args": ["run", "--directory", "/pad/naar/docs-mcp",
                "python", "-m", "docs_mcp.server"]
     }
   }
@@ -54,3 +54,13 @@ Omgevingsvariabelen (alle optioneel):
   er is geen tweede, eigen curatielaag.
 - **Pinned + getest**: dependencies vastgepind; 12 unit tests inclusief
   de traversal- en token-lek-scenario's.
+
+Of user-breed, buiten elke repo:
+
+```
+claude mcp add --scope user conduction-docs -- \
+  uv run --directory /pad/naar/docs-mcp python -m docs_mcp.server
+```
+
+> Let op: `--directory`, niet `--project` — dat laatste activeert wel de
+> venv maar niet de map, en dit package is bewust niet geïnstalleerd.

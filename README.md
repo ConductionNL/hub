@@ -12,4 +12,4 @@ Aansluiten en het beveiligingsmodel: [docs/gebruik.md](docs/gebruik.md).
 
     uv sync
     ./scripts/verify.sh          # unit tests (netwerkvrij)
-    uv run python -m docs_mcp.server   # start (stdio)
+    uv run python -m docs_mcp.server   # start (stdio; van elders: uv run --directory <pad> ...)
