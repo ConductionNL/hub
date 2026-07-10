@@ -45,6 +45,21 @@ uv run python -c "from docs_mcp import content, search, server"
 - `read_page(component, path)` — één pagina, altijd met herkomst
   (owner, last_reviewed, bron-URL) — citeer die in antwoorden
 
+## Cockpit-guardrails: afgedwongen vs conventie
+
+Sinds 2026-07-10 zijn cluster-mutaties vanuit cockpit-sessies **technisch
+geblokkeerd** (deny-regels in `.claude/settings.json`): `kubectl
+apply/delete/patch/scale/exec/...`, `argocd app sync/set/delete`, `helm
+install/upgrade/uninstall` en `sops` worden geweigerd, ongeacht wat een
+sessie probeert. Leesoperaties (`kubectl get/describe/logs`, `kubectl
+kustomize` voor de verify-gates) blijven werken.
+
+**Conventie blijft** (niet technisch afdwingbaar hier): geen
+prod-kubeconfig in de default-omgeving van de cockpit-machine, pushes
+door een mens, en de per-component catalogen. ISO-framing: de
+deny-lijst is de werkende control, de conventies zijn de beschreven
+control met de pre-push gates als detectie.
+
 ## Beveiligingsmodel
 
 - **Geen netwerkpoort**: stdio-transport; de server is een lokaal

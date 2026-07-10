@@ -11,6 +11,30 @@
       "../monitoring",
       "../KeyCloak",
       "../openwoo-app-config"
+    ],
+    "deny": [
+      "Bash(kubectl apply:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl patch:*)",
+      "Bash(kubectl scale:*)",
+      "Bash(kubectl edit:*)",
+      "Bash(kubectl create:*)",
+      "Bash(kubectl replace:*)",
+      "Bash(kubectl annotate:*)",
+      "Bash(kubectl label:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(kubectl drain:*)",
+      "Bash(kubectl cordon:*)",
+      "Bash(kubectl uncordon:*)",
+      "Bash(kubectl rollout:*)",
+      "Bash(argocd app sync:*)",
+      "Bash(argocd app set:*)",
+      "Bash(argocd app delete:*)",
+      "Bash(helm install:*)",
+      "Bash(helm upgrade:*)",
+      "Bash(helm uninstall:*)",
+      "Bash(helm rollback:*)",
+      "Bash(sops:*)"
     ]
   }
 }
