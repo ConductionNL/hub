@@ -144,3 +144,18 @@ class TestSearch:
     def test_snippet_contains_term_context(self, tmp_path):
         hits = s.search(self._pages(tmp_path), "allowlist")
         assert "allowlist" in hits[0].snippet.lower()
+
+
+class TestSymlinkGuard:
+    def test_symlink_outside_tree_skipped(self, tmp_path):
+        repo = make_source_repo(tmp_path)
+        geheim = tmp_path / "geheim.md"
+        geheim.write_text("# prive-inhoud buiten de boom\n")
+        (repo / "docs" / "lek.md").symlink_to(geheim)
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-qm", "symlink"], cwd=repo, check=True)
+        store = c.ContentStore(tmp_path / "cache")
+        paths = {p.path for p in store.pages(make_component(repo))}
+        assert "lek.md" not in paths
+        assert "index.md" in paths

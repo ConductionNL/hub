@@ -135,6 +135,11 @@ class ContentStore:
         for md in sorted(docs_root.rglob("*.md")):
             if EXCLUDE_PARTS.intersection(md.parts):
                 continue
+            # Symlink-guard (zelfde begrenzing als read_page): een link
+            # die buiten de docs-boom wijst wordt overgeslagen, nooit
+            # gevolgd — anders kan een bronrepo lokale bestanden lekken.
+            if not md.resolve().is_relative_to(docs_root):
+                continue
             pages.append(self._load_page(comp, docs_root, md))
         return pages
 
