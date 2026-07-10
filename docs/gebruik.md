@@ -30,6 +30,13 @@ Omgevingsvariabelen (alle optioneel):
 | `DOCS_MCP_MAX_AGE` | verversing in seconden | `3600` |
 | `DOCS_MCP_HANDBOOK_MKDOCS` | lokaal mkdocs.yml i.p.v. Codeberg | (netwerk) |
 
+Dat de gedocumenteerde start werkt, is een geteste bewering
+(uitvoerbare documentatie):
+
+```bash verify
+uv run python -c "from docs_mcp import content, search, server"
+```
+
 ## Tools
 
 - `list_components()` — componenten + pagina's (met notice als een
