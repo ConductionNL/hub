@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-10
 owner: mark
 ---
 
@@ -14,7 +14,7 @@ In een `.mcp.json` van een repo of agent-omgeving:
   "mcpServers": {
     "conduction-docs": {
       "command": "uv",
-      "args": ["run", "--directory", "/pad/naar/docs-mcp",
+      "args": ["run", "--directory", "/pad/naar/hub",
                "python", "-m", "docs_mcp.server"]
     }
   }
@@ -59,7 +59,7 @@ Of user-breed, buiten elke repo:
 
 ```
 claude mcp add --scope user conduction-docs -- \
-  uv run --directory /pad/naar/docs-mcp python -m docs_mcp.server
+  uv run --directory /pad/naar/hub python -m docs_mcp.server
 ```
 
 > Let op: `--directory`, niet `--project` — dat laatste activeert wel de

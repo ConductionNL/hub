@@ -16,4 +16,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 uv run --with pytest python -m pytest tests/ -q
-echo "verify: OK"
+shellcheck scripts/*.sh
+python3 -c "import json; json.load(open('.mcp.json')); json.load(open('.claude/settings.json'))"
+echo "verify: OK (tests + lint + config)"

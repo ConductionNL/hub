@@ -1,11 +1,11 @@
 ---
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-10
 owner: mark
 ---
 
-# docs-mcp
+# hub
 
-MCP-server die het Conduction-handboek ontsluit voor agents: de
+Agent-ingang van Conduction (cockpit + handboek-MCP): de
 geaggregeerde, actuele documentatie als grondwaarheid per component
 (openspec change `add-docs-mcp` in techbook, northstar-pijler 2).
 
