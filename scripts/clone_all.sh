@@ -19,9 +19,11 @@
 set -euo pipefail
 
 readonly ROOT="${ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# Canonieke Codeberg-naam is React-base; Codeberg resolvet
+# hoofdletterongevoelig en de lokale checkout heet react-base.
 readonly REPOS=(
-  techbook handbook docs-mcp
-  Nextcloud-base React-base talos cluster-infra cluster-config
+  techbook handbook
+  Nextcloud-base react-base talos cluster-infra cluster-config
   monitoring KeyCloak openwoo-app-config
 )
 

@@ -1,8 +1,11 @@
 # CLAUDE.md — de cockpit
 
-Vanuit deze map werk je aan alle Conduction-componenten: de zusterrepos
-onder `../` zijn toegankelijk (zie `.claude/settings.json`). Begin bij
-het handboek (MCP `conduction-docs`) voor elke component-vraag.
+Vanuit deze map werk je aan alle Conduction-componenten: alléén de
+deelnemende zusterrepos onder `../` zijn toegankelijk (de lijst staat
+in `.claude/settings.json` en spiegelt `scripts/clone_all.sh` — houd
+die twee gelijk). Andere mappen onder `../` vallen buiten het
+hub-programma; kom je die nodig, vraag het eerst. Begin bij het
+handboek (MCP `conduction-docs`) voor elke component-vraag.
 
 ## Router
 
