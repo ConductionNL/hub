@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-13 — eigenaarschap → info@conduction.nl (review WP8)
+- Alle `owner:`-front-matter en CODEOWNERS omgezet van `mark` naar
+  `info@conduction.nl` (opvolging na 2026-08-31). Voorbereid op branch
+  `chore/wp8-ownership`; review, merge en push door een mens.
+
 ## 2026-07-10 (middag) — review-bevindingen verwerkt (symlink-guard, WP3, WP7)
 
 Nagedragen op 2026-07-13; de commits zelf zijn van 2026-07-10.
