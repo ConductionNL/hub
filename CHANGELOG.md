@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-10 (middag) — review-bevindingen verwerkt (symlink-guard, WP3, WP7)
+
+Nagedragen op 2026-07-13; de commits zelf zijn van 2026-07-10.
+
+- `docs_mcp/content.py`: symlink-guard in `pages()` — zelfde padbegrenzing
+  als `read_page`, met test (review-bevinding; commit 374f7b8).
+- `.claude/settings.json` + `docs/gebruik.md`: cockpit deny-rules —
+  cluster-mutaties technisch geblokkeerd i.p.v. alleen conventie
+  (review WP3; commit 5b9f946); chirurgisch, `kubectl kustomize`/`get`
+  blijven werken voor de verify-gates.
+- `.pre-commit-config.yaml`: secret-scanning gates fleet-wide
+  (gitleaks + detect-private-key, review WP7; commit 4df1b38).
+
 ## 2026-07-10 — cockpit-scope beperkt tot deelnemende repos
 
 - `scripts/clone_all.sh`: verouderde entry `docs-mcp` verwijderd (die
