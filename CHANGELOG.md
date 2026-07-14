@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-14 — operatiecataloog toegevoegd (add-component-skills fase 0)
+
+- `docs/agents.md`: de hub had als cockpit-repo zelf geen cataloog —
+  per de escalatieregel was hier alles mens-vereist. Nu gecatalogiseerd:
+  clone_all/docs_mcp/semantische-review autonoom (met verify-gates),
+  cockpit-settings en push mens-vereist.
+
 ## 2026-07-13 — eigenaarschap → info@conduction.nl (review WP8)
 - Alle `owner:`-front-matter en CODEOWNERS omgezet van `mark` naar
   `info@conduction.nl` (opvolging na 2026-08-31). Voorbereid op branch
