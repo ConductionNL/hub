@@ -79,7 +79,96 @@ class TestImportList:
         f = tmp_path / "mkdocs.yml"
         f.write_text(MKDOCS)
         monkeypatch.setenv("DOCS_MCP_HANDBOOK_MKDOCS", str(f))
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", "")
         assert c.fetch_import_list()[0].name == "demo"
+
+    def test_publieke_lijst_is_niet_internal(self):
+        assert all(not comp.internal for comp in c.parse_import_list(MKDOCS))
+
+
+INTERNAL = """
+repos:
+  - section: geheim
+    import_url: 'https://github.com/ConductionNL/geheim?branch=main&docs_dir=docs/*'
+"""
+
+
+class TestInternalList:
+    """De MCP ziet private componenten; het portaal niet.
+
+    Vóór 2026-08-03 was de publieke importlijst de énige bron voor welke
+    componenten bestonden, dus een repo uit de site halen maakte hem ook
+    onzichtbaar voor agents. Deze tests houden die twee knoppen gescheiden.
+    """
+
+    def _public_only(self, tmp_path, monkeypatch):
+        f = tmp_path / "mkdocs.yml"
+        f.write_text(MKDOCS)
+        monkeypatch.setenv("DOCS_MCP_HANDBOOK_MKDOCS", str(f))
+
+    def test_parse_markeert_internal(self):
+        comps = c.parse_internal_list(INTERNAL)
+        assert [(x.name, x.internal) for x in comps] == [("geheim", True)]
+
+    def test_leeg_bestand_is_geen_fout(self):
+        assert c.parse_internal_list("") == []
+
+    def test_aanvulling_komt_erbij(self, tmp_path, monkeypatch):
+        self._public_only(tmp_path, monkeypatch)
+        f = tmp_path / "internal.yaml"
+        f.write_text(INTERNAL)
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", str(f))
+        comps = c.fetch_import_list()
+        assert [(x.name, x.internal) for x in comps] == [
+            ("demo", False), ("geheim", True)]
+
+    def test_env_leeg_schakelt_uit(self, tmp_path, monkeypatch):
+        self._public_only(tmp_path, monkeypatch)
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", "")
+        assert [x.name for x in c.fetch_import_list()] == ["demo"]
+
+    def test_ontbrekend_bestand_is_geen_fout(self, tmp_path, monkeypatch):
+        self._public_only(tmp_path, monkeypatch)
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS",
+                           str(tmp_path / "bestaat-niet.yaml"))
+        assert [x.name for x in c.fetch_import_list()] == ["demo"]
+
+    def test_publiek_wint_bij_dubbele_naam(self, tmp_path, monkeypatch):
+        """Staat een component in beide lijsten, dan publiceert hij — dus
+        mag hij niet als 'internal' gemarkeerd raken."""
+        self._public_only(tmp_path, monkeypatch)
+        f = tmp_path / "internal.yaml"
+        f.write_text(INTERNAL.replace("geheim", "demo"))
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", str(f))
+        comps = c.fetch_import_list()
+        assert [(x.name, x.internal) for x in comps] == [("demo", False)]
+
+    def test_naam_case_insensitief_gededupliceerd(self, tmp_path, monkeypatch):
+        """De lijst schrijft `React-base`, de werkkopie heet `react-base`."""
+        self._public_only(tmp_path, monkeypatch)
+        f = tmp_path / "internal.yaml"
+        f.write_text(INTERNAL.replace("geheim", "DEMO"))
+        monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", str(f))
+        assert [x.name for x in c.fetch_import_list()] == ["demo"]
+
+    def test_meegeleverde_lijst_dekt_de_private_repos(self):
+        """De echte internal_components.yaml, niet een fixture: de twee
+        private repos moeten erin staan, anders zijn ze onzichtbaar."""
+        comps = c.parse_internal_list(c.DEFAULT_INTERNAL_LIST.read_text())
+        assert {x.name for x in comps} == {"cluster-config", "KeyCloak"}
+        assert all(x.internal for x in comps)
+
+    def test_provenance_meldt_publication(self):
+        """Een agent moet in het antwoord zien of `source` publiek is."""
+        from docs_mcp import server
+
+        def page(internal):
+            return c.Page(component="x", path="index.md", body="", owner=None,
+                          last_reviewed=None, source="https://example/x",
+                          internal=internal)
+
+        assert server._provenance(page(False))["publication"] == "public"
+        assert server._provenance(page(True))["publication"] == "internal"
 
 
 class TestContentStore:

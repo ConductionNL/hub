@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-03 — publiek en grondwaarheid ontkoppeld (interne componentenlijst)
+
+### Aanleiding
+
+De publieke handbook-site publiceerde de docs van `cluster-config`, een
+private repo: clusternaam, provider, tenant-inventaris. Die moest uit de
+publieke trust root (`repos:` in `handbook/mkdocs.yml`).
+
+Probleem: `docs_mcp/content.py` gebruikte diezelfde lijst als **enige**
+bron voor welke componenten bestaan. Een repo uit de site halen maakte hem
+dus ook onzichtbaar voor agents. Dat was al gebeurd bij `KeyCloak` — die
+stond nergens meer in `list_components`, terwijl niemand dat had besloten.
+Eén knop deed twee dingen.
+
+### Toegevoegd
+
+- `docs_mcp/internal_components.yaml` — componenten die de MCP wél ziet en
+  het portaal niet. Nu `cluster-config` en `KeyCloak`. Zelfde vorm als
+  `mkdocs.yml`, zodat één parser volstaat. Pad env-tunable via
+  `DOCS_MCP_INTERNAL_COMPONENTS`; leeg zetten schakelt de aanvulling uit,
+  dan ziet de MCP precies wat het portaal publiceert. Ontbrekend bestand is
+  geen fout.
+- `Component.internal` en `Page.internal`; `parse_internal_list()`,
+  `load_internal_list()` en `_merge()`. Bij een dubbele naam wint de
+  publieke lijst — die publiceert, dus mag niet als intern gelden.
+  Namen case-insensitief gededupliceerd (`React-base` vs `react-base`).
+- **`publication: public|internal`** in elk MCP-antwoord
+  (`read_page`, `search_docs`) en per component in `list_components`.
+  Zonder dat veld lopen publiek en grondwaarheid stil uit elkaar, en dat
+  is precies het soort onzichtbaar verschil dat deze sessie opruimde: wie
+  een `internal`-pagina naar buiten citeert, geeft een `source`-URL die de
+  ontvanger niet kan openen.
+
+### Verificatie
+
+10 nieuwe tests (31 totaal, was 21), waaronder één die de meegeleverde
+`internal_components.yaml` tegen de werkelijkheid houdt in plaats van tegen
+een fixture. Gecontroleerd tegen de aangepaste `handbook/mkdocs.yml`:
+publiek 7 componenten, MCP 9 — `cluster-config` en `KeyCloak` als
+`INTERN`.
+
 ## 2026-08-03 — MCP koud bruikbaar + herkomst eerlijk; "MCP eerst" hard gemaakt
 
 Aanleiding: bij een ArgoCD-vraag liep de eerste `search_docs` over de 120s

@@ -47,7 +47,10 @@ def _component(name: str) -> content_mod.Component:
 def _provenance(p: content_mod.Page) -> dict:
     return {"component": p.component, "path": p.path, "owner": p.owner,
             "last_reviewed": p.last_reviewed, "source": p.source,
-            "origin": p.origin}
+            "origin": p.origin,
+            # "internal" = niet op de publieke site; `source` is dan een
+            # private repo-URL die een buitenstaander niet kan openen.
+            "publication": "internal" if p.internal else "public"}
 
 
 @mcp.tool()
@@ -58,6 +61,7 @@ def list_components() -> list[dict]:
     for c in comps:
         pages = store.pages(c)
         entry = {"component": c.name,
+                 "publication": "internal" if c.internal else "public",
                  "pages": [p.path for p in pages]}
         if c.name in store.unavailable:
             entry["notice"] = store.unavailable[c.name]

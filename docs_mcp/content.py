@@ -32,6 +32,11 @@ DEFAULT_IMPORT_LIST_TIMEOUT_SECONDS = 30
 # schakelt de lokale bron uit en dwingt netwerk-clones af.
 DEFAULT_LOCAL_ROOT = ".."
 
+# Interne componenten (niet publiek gepubliceerd). Naast de package, niet
+# relatief aan de cwd: de MCP start vanuit willekeurige werkmappen.
+DEFAULT_INTERNAL_LIST = pathlib.Path(__file__).with_name(
+    "internal_components.yaml")
+
 EXCLUDE_PARTS = {".git", ".venv", "node_modules", ".pytest_cache"}
 
 
@@ -63,6 +68,10 @@ class Component:
     clone_url: str
     branch: str
     docs_dir: str
+    # True = alleen voor de MCP, niet op de publieke site. Zie
+    # internal_components.yaml. Een agent die hieruit citeert moet weten
+    # dat de bron-URL niet publiek open te klikken is.
+    internal: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -78,37 +87,86 @@ class Page:
     # géén weergave van `source`. Dat moet zichtbaar zijn in het antwoord,
     # anders presenteert de MCP een WIP-branch als grondwaarheid.
     origin: str = "remote"
+    # Uit een component die niet publiek gepubliceerd wordt. Citeer je dit
+    # naar buiten, dan is `source` voor de ontvanger niet te openen.
+    internal: bool = False
+
+
+def _components_from_repos(repos: list, *, internal: bool) -> list[Component]:
+    """Zet een `repos:`-lijst (mkdocs-multirepo-vorm) om naar Components."""
+    components = []
+    for repo in repos or []:
+        url = urllib.parse.urlparse(repo["import_url"])
+        params = urllib.parse.parse_qs(url.query)
+        clone_url = f"{url.scheme}://{url.netloc}{url.path}"
+        name = url.path.rstrip("/").rsplit("/", 1)[-1]
+        components.append(Component(
+            name=name,
+            clone_url=clone_url,
+            branch=params.get("branch", ["main"])[0],
+            docs_dir=params.get("docs_dir", ["docs/*"])[0].replace("/*", ""),
+            internal=internal,
+        ))
+    return components
 
 
 def parse_import_list(mkdocs_yaml: str) -> list[Component]:
-    """Parse the handbook's multirepo import list (single source of truth)."""
+    """Parse de publieke importlijst van het handboek (de trust root)."""
     config = yaml.safe_load(mkdocs_yaml)
     components = []
     for plugin in config.get("plugins", []):
         if not (isinstance(plugin, dict) and "multirepo" in plugin):
             continue
-        for repo in plugin["multirepo"].get("repos", []):
-            url = urllib.parse.urlparse(repo["import_url"])
-            params = urllib.parse.parse_qs(url.query)
-            clone_url = f"{url.scheme}://{url.netloc}{url.path}"
-            name = url.path.rstrip("/").rsplit("/", 1)[-1]
-            components.append(Component(
-                name=name,
-                clone_url=clone_url,
-                branch=params.get("branch", ["main"])[0],
-                docs_dir=params.get("docs_dir", ["docs/*"])[0].replace("/*", ""),
-            ))
+        components.extend(_components_from_repos(
+            plugin["multirepo"].get("repos", []), internal=False))
     return components
+
+
+def parse_internal_list(list_yaml: str) -> list[Component]:
+    """Parse de interne aanvulling (`repos:` op topniveau)."""
+    config = yaml.safe_load(list_yaml) or {}
+    return _components_from_repos(config.get("repos", []), internal=True)
+
+
+def load_internal_list() -> list[Component]:
+    """Interne componenten: zichtbaar voor de MCP, niet voor het portaal.
+
+    Pad is env-tunable (`DOCS_MCP_INTERNAL_COMPONENTS`); expliciet leeg
+    zetten schakelt de aanvulling uit, dan ziet de MCP precies wat het
+    portaal publiceert. Een ontbrekend bestand is geen fout — de MCP moet
+    blijven werken zonder interne lijst.
+    """
+    raw = os.environ.get("DOCS_MCP_INTERNAL_COMPONENTS")
+    if raw is not None and not raw.strip():
+        return []
+    path = pathlib.Path(raw) if raw else DEFAULT_INTERNAL_LIST
+    if not path.is_file():
+        return []
+    return parse_internal_list(path.read_text())
+
+
+def _merge(public: list[Component],
+           internal: list[Component]) -> list[Component]:
+    """Publiek + intern, zonder dubbelen. Publiek wint: dat publiceert.
+
+    Namen case-insensitief vergeleken, net als de werkkopie-matching
+    (`React-base` in de lijst, `react-base` op schijf).
+    """
+    seen = {c.name.lower() for c in public}
+    return public + [c for c in internal if c.name.lower() not in seen]
 
 
 def fetch_import_list() -> list[Component]:
     override = os.environ.get("DOCS_MCP_HANDBOOK_MKDOCS")
     if override:
-        return parse_import_list(pathlib.Path(override).read_text())
-    timeout = env_int("DOCS_MCP_IMPORT_LIST_TIMEOUT",
-                      DEFAULT_IMPORT_LIST_TIMEOUT_SECONDS)
-    with urllib.request.urlopen(HANDBOOK_MKDOCS_URL, timeout=timeout) as resp:
-        return parse_import_list(resp.read().decode())
+        public = parse_import_list(pathlib.Path(override).read_text())
+    else:
+        timeout = env_int("DOCS_MCP_IMPORT_LIST_TIMEOUT",
+                          DEFAULT_IMPORT_LIST_TIMEOUT_SECONDS)
+        with urllib.request.urlopen(HANDBOOK_MKDOCS_URL,
+                                    timeout=timeout) as resp:
+            public = parse_import_list(resp.read().decode())
+    return _merge(public, load_internal_list())
 
 
 class ContentStore:
@@ -291,6 +349,7 @@ class ContentStore:
             source=_page_url(comp.clone_url, comp.branch,
                              f"{comp.docs_dir}/{rel}"),
             origin=self._origin.get(comp.name, "remote"),
+            internal=comp.internal,
         )
 
 

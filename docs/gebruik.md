@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-07-10
+last_reviewed: 2026-08-03
 owner: info@conduction.nl
 ---
 
@@ -53,6 +53,27 @@ een waarschuwing als die afwijkt van de importlijst, en of er
 ongecommitte wijzigingen zijn. Een agent hoort dat te citeren: een
 WIP-branch is geen grondwaarheid. Zet `DOCS_MCP_LOCAL_ROOT=""` om
 uitsluitend van de remote te lezen.
+
+## Publiek versus grondwaarheid: twee lijsten
+
+De publieke site publiceert wat in `repos:` van `handbook/mkdocs.yml`
+staat. De MCP ziet dáárnaast de private componenten uit
+`docs_mcp/internal_components.yaml` — nu `cluster-config` en `KeyCloak`.
+
+Waarom gescheiden: tot 2026-08-03 was de importlijst van het handboek de
+énige bron voor welke componenten bestonden. Een private repo uit de
+publieke site halen maakte hem daarmee ook onzichtbaar voor agents. Dat is
+ongemerkt gebeurd bij `KeyCloak`. Eén knop deed twee dingen; nu zijn het
+twee knoppen.
+
+Elk antwoord meldt `publication: public|internal`, en `list_components`
+doet dat per component. Citeer je een `internal`-pagina naar buiten, dan
+kan de ontvanger de `source`-URL niet openen — dat moet zichtbaar zijn,
+anders lopen publiek en grondwaarheid stil uit elkaar. Staat een component
+in beide lijsten, dan wint de publieke.
+
+Zet `DOCS_MCP_INTERNAL_COMPONENTS=""` om de aanvulling uit te schakelen;
+dan ziet de MCP precies wat het portaal publiceert.
 
 Dat de gedocumenteerde start werkt, is een geteste bewering
 (uitvoerbare documentatie):

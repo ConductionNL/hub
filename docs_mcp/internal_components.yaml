@@ -1,0 +1,30 @@
+# Interne componenten — zichtbaar voor de MCP, NIET voor de publieke site.
+#
+# De publieke trust root is `repos:` in handbook/mkdocs.yml. Die lijst
+# bepaalt wat het portaal publiceert. Deze lijst is een aanvulling
+# dáárop, alleen voor de MCP: componenten waarvan agents de documentatie
+# als grondwaarheid nodig hebben, maar die niet op een publieke URL
+# thuishoren.
+#
+# Waarom gescheiden: tot 2026-08-03 was de importlijst van het handboek
+# de énige bron voor welke componenten bestonden. Een private repo uit de
+# publieke site halen betekende hem ook uit de MCP halen — dat is
+# gebeurd bij KeyCloak, die daardoor onbedoeld onzichtbaar was voor
+# agents. Publiek en grondwaarheid zijn nu twee knoppen.
+#
+# Dezelfde vorm als mkdocs.yml, zodat één parser volstaat. Staat een
+# component in beide lijsten, dan wint de publieke (die publiceert).
+#
+# Pad is env-tunable: DOCS_MCP_INTERNAL_COMPONENTS. Leeg zetten schakelt
+# de interne aanvulling uit — dan ziet de MCP precies wat het portaal
+# publiceert.
+repos:
+  # Private repo. De RCA noemt de clusternaam, de provider en de
+  # tenant-inventaris; die horen niet op een publieke site. Agents hebben
+  # de cataloog en de RCA wél nodig om in deze repo te mogen werken.
+  - section: cluster-config
+    import_url: 'https://github.com/ConductionNL/cluster-config?branch=main&docs_dir=docs/*'
+  # Private repo. Interne endpoints en klantkoppelingen horen achter
+  # login; stond al buiten de publieke site (handbook/mkdocs.yml).
+  - section: KeyCloak
+    import_url: 'https://github.com/ConductionNL/KeyCloak?branch=main&docs_dir=docs/*'
