@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-07-10
+last_reviewed: 2026-08-03
 owner: info@conduction.nl
 ---
 
@@ -28,7 +28,52 @@ Omgevingsvariabelen (alle optioneel):
 | `DOCS_READ_TOKEN` | leestoegang tot private bronrepos | geen (private repos afwezig) |
 | `DOCS_MCP_CACHE` | cache-locatie voor de clones | `~/.cache/docs-mcp` |
 | `DOCS_MCP_MAX_AGE` | verversing in seconden | `3600` |
-| `DOCS_MCP_HANDBOOK_MKDOCS` | lokaal mkdocs.yml i.p.v. Codeberg | (netwerk) |
+| `DOCS_MCP_HANDBOOK_MKDOCS` | lokaal mkdocs.yml i.p.v. de netwerk-bron | (netwerk) |
+| `DOCS_MCP_LOCAL_ROOT` | fleet-root met de zusterrepos als werkkopie; leeg = altijd klonen | `..` |
+| `DOCS_MCP_GIT_TIMEOUT` | timeout per git-aanroep, seconden | `20` |
+| `DOCS_MCP_IMPORT_LIST_TIMEOUT` | timeout voor het ophalen van de importlijst, seconden | `30` |
+
+## Bron: lokale werkkopie eerst
+
+Staat een component al als werkkopie onder `DOCS_MCP_LOCAL_ROOT`, dan
+leest de MCP die map direct; alleen componenten die lokaal ontbreken
+worden shallow gekloond. Reden: de cockpit heeft de zusterrepos al onder
+`../` staan, en klonen kostte per component een netwerk-ronde. Met negen
+componenten paste dat niet binnen de 120s die een agent-call heeft — de
+MCP was daardoor in de praktijk onbruikbaar en werd omzeild. Koud
+antwoorden duurt nu ~0,1s.
+
+Namen worden case-insensitief gematcht: de importlijst schrijft
+`React-base`, de werkkopie heet `react-base`.
+
+De prijs is dat een werkkopie op een feature-branch kan staan of
+ongecommit werk kan hebben. Daarom levert elke pagina een `origin`-veld
+naast de herkomst, dat de gebruikte bron benoemt — inclusief branch,
+een waarschuwing als die afwijkt van de importlijst, en of er
+ongecommitte wijzigingen zijn. Een agent hoort dat te citeren: een
+WIP-branch is geen grondwaarheid. Zet `DOCS_MCP_LOCAL_ROOT=""` om
+uitsluitend van de remote te lezen.
+
+## Publiek versus grondwaarheid: twee lijsten
+
+De publieke site publiceert wat in `repos:` van `handbook/mkdocs.yml`
+staat. De MCP ziet dáárnaast de private componenten uit
+`docs_mcp/internal_components.yaml` — nu `cluster-config` en `KeyCloak`.
+
+Waarom gescheiden: tot 2026-08-03 was de importlijst van het handboek de
+énige bron voor welke componenten bestonden. Een private repo uit de
+publieke site halen maakte hem daarmee ook onzichtbaar voor agents. Dat is
+ongemerkt gebeurd bij `KeyCloak`. Eén knop deed twee dingen; nu zijn het
+twee knoppen.
+
+Elk antwoord meldt `publication: public|internal`, en `list_components`
+doet dat per component. Citeer je een `internal`-pagina naar buiten, dan
+kan de ontvanger de `source`-URL niet openen — dat moet zichtbaar zijn,
+anders lopen publiek en grondwaarheid stil uit elkaar. Staat een component
+in beide lijsten, dan wint de publieke.
+
+Zet `DOCS_MCP_INTERNAL_COMPONENTS=""` om de aanvulling uit te schakelen;
+dan ziet de MCP precies wat het portaal publiceert.
 
 Dat de gedocumenteerde start werkt, is een geteste bewering
 (uitvoerbare documentatie):
