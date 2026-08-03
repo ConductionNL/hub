@@ -28,7 +28,8 @@ def _init():
         cache = pathlib.Path(os.environ.get(
             "DOCS_MCP_CACHE",
             pathlib.Path.home() / ".cache" / "docs-mcp"))
-        max_age = int(os.environ.get("DOCS_MCP_MAX_AGE", "3600"))
+        max_age = content_mod.env_int(
+            "DOCS_MCP_MAX_AGE", content_mod.DEFAULT_MAX_AGE_SECONDS)
         _store = content_mod.ContentStore(cache, max_age=max_age)
         _components = content_mod.fetch_import_list()
     return _store, _components
@@ -45,7 +46,8 @@ def _component(name: str) -> content_mod.Component:
 
 def _provenance(p: content_mod.Page) -> dict:
     return {"component": p.component, "path": p.path, "owner": p.owner,
-            "last_reviewed": p.last_reviewed, "source": p.source}
+            "last_reviewed": p.last_reviewed, "source": p.source,
+            "origin": p.origin}
 
 
 @mcp.tool()

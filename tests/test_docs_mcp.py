@@ -35,6 +35,19 @@ De squid allowlist bevat exacte hosts, geen wildcards.
 """
 
 
+@pytest.fixture(autouse=True)
+def geen_lokale_bron(monkeypatch):
+    """Isoleer de tests van de fleet-root.
+
+    De lokale bron staat in productie default aan (`DOCS_MCP_LOCAL_ROOT`
+    = `..`). Zonder deze isolatie zou een fixture-naam die toevallig
+    samenvalt met een echte zusterrepo die repo gaan lezen — de tests
+    horen netwerkvrij én fleet-vrij te zijn. Tests die het lokale pad
+    expliciet toetsen zetten de variabele zelf.
+    """
+    monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", "")
+
+
 def make_source_repo(tmp_path, name="demo"):
     repo = tmp_path / "sources" / name
     (repo / "docs").mkdir(parents=True)
@@ -126,6 +139,89 @@ class TestContentStore:
         subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
                         "commit", "-qm", "meer"], cwd=repo, check=True)
         assert "nieuw.md" in {p.path for p in store.pages(comp)}
+
+
+class TestLokaleBron:
+    """De fleet-root als bron: sneller, actueler, en eerlijk over herkomst."""
+
+    def _fleet(self, tmp_path, dirname="demo"):
+        # make_source_repo legt de repo onder <tmp>/sources/<naam>; die
+        # `sources`-map is dus de fleet-root.
+        repo = make_source_repo(tmp_path / "fleet", name=dirname)
+        return repo.parent, repo
+
+    def test_lokale_werkkopie_wordt_gebruikt_zonder_clone(self, tmp_path,
+                                                          monkeypatch):
+        fleet, repo = self._fleet(tmp_path)
+        monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", str(fleet))
+        # Onbereikbare clone-URL: slaagt dit, dan is er geen netwerk gebruikt.
+        comp = c.Component(name="demo", branch="main", docs_dir="docs",
+                           clone_url="https://voorbeeld.invalid/Conduction/demo")
+        store = c.ContentStore(tmp_path / "cache")
+        pages = store.pages(comp)
+        assert {p.path for p in pages} == {"index.md", "other.md"}
+        assert not (tmp_path / "cache" / "demo").exists()
+
+    def test_casing_verschil_matcht(self, tmp_path, monkeypatch):
+        # Importlijst zegt `React-base`, de werkkopie heet `react-base`.
+        fleet, _ = self._fleet(tmp_path, dirname="react-base")
+        monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", str(fleet))
+        comp = c.Component(name="React-base", branch="main", docs_dir="docs",
+                           clone_url="https://voorbeeld.invalid/x/React-base")
+        store = c.ContentStore(tmp_path / "cache")
+        assert "index.md" in {p.path for p in store.pages(comp)}
+
+    def test_herkomst_meldt_branch_en_ongecommit_werk(self, tmp_path,
+                                                     monkeypatch):
+        fleet, repo = self._fleet(tmp_path)
+        monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", str(fleet))
+        subprocess.run(["git", "checkout", "-q", "-b", "chore/wip"], cwd=repo,
+                       check=True)
+        (repo / "docs" / "index.md").write_text(PAGE + "\nWIP-regel.\n")
+        comp = c.Component(name="demo", branch="main", docs_dir="docs",
+                           clone_url="https://voorbeeld.invalid/x/demo")
+        store = c.ContentStore(tmp_path / "cache")
+        page = store.read_page(comp, "index.md")
+        assert "lokale werkkopie" in page.origin
+        assert "chore/wip" in page.origin
+        assert "importlijst verwacht main" in page.origin
+        assert "ONGECOMMITTE" in page.origin
+
+    def test_zonder_lokale_kopie_valt_terug_op_clone(self, tmp_path,
+                                                     monkeypatch):
+        fleet = tmp_path / "fleet"
+        fleet.mkdir()
+        monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", str(fleet))
+        repo = make_source_repo(tmp_path)
+        store = c.ContentStore(tmp_path / "cache")
+        page = store.read_page(make_component(repo), "index.md")
+        assert "shallow clone" in page.origin
+        assert (tmp_path / "cache" / "demo").exists()
+
+
+class TestHerkomstURL:
+    def test_github_gebruikt_blob_syntax(self):
+        url = c._page_url("https://github.com/ConductionNL/cluster-infra",
+                          "main", "docs/argocd.md")
+        assert url == ("https://github.com/ConductionNL/cluster-infra/"
+                       "blob/main/docs/argocd.md")
+
+    def test_forgejo_houdt_src_branch_syntax(self):
+        url = c._page_url("https://codeberg.org/Conduction/cluster-infra",
+                          "main", "docs/argocd.md")
+        assert "/src/branch/main/docs/argocd.md" in url
+
+
+class TestEnvTunableLimieten:
+    def test_defaults_en_override(self, monkeypatch):
+        assert c.env_int("DOCS_MCP_GIT_TIMEOUT",
+                         c.DEFAULT_GIT_TIMEOUT_SECONDS) == 20
+        monkeypatch.setenv("DOCS_MCP_GIT_TIMEOUT", "5")
+        assert c.env_int("DOCS_MCP_GIT_TIMEOUT", 20) == 5
+
+    def test_onzin_waarde_valt_terug_op_default(self, monkeypatch):
+        monkeypatch.setenv("DOCS_MCP_GIT_TIMEOUT", "geen-getal")
+        assert c.env_int("DOCS_MCP_GIT_TIMEOUT", 20) == 20
 
 
 class TestSearch:
