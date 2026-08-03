@@ -5,12 +5,12 @@
 meegeleverde MCP-server (`conduction-docs`) serveert de geaggregeerde
 `/docs` van de deelnemende repos als grondwaarheid, met herkomst
 (owner, reviewdatum, bron-URL) bij elk antwoord. De regels wonen in
-[`techbook`](https://codeberg.org/Conduction/techbook), de site in
-[`handbook`](https://codeberg.org/Conduction/handbook).
+[`techbook`](https://github.com/ConductionNL/techbook), de site in
+[`handbook`](https://github.com/ConductionNL/handbook).
 
 ## Gebruik (cockpit)
 
-    git clone https://codeberg.org/Conduction/hub.git ~/CONDUCTION/hub
+    git clone https://github.com/ConductionNL/hub.git ~/CONDUCTION/hub
     cd ~/CONDUCTION/hub && uv sync
     ./scripts/clone_all.sh     # kloont/ververst alle deelnemende repos ernaast
     claude                     # sessie met toegang tot alles + handboek-MCP
