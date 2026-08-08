@@ -1,7 +1,8 @@
 # Gate-mode hooks (nooit auto-fix). Activeren:
 #   pre-commit install --hook-type pre-push
 repos:
-  - repo: https://codeberg.org/Conduction/techbook
+  # Bron is GitHub sinds de migratie; hetzelfde rev als de andere repos.
+  - repo: https://github.com/ConductionNL/techbook
     rev: edf269eeea4fd28f150791a00d6600d645262a91
     hooks:
       - id: docs-contract

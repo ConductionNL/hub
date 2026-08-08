@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-08 — docs-gate ook server-side
+
+De hooks in `.pre-commit-config.yaml` draaiden alleen bij wie
+`pre-commit install` had gedaan. Een PR van iemand zonder hooks passeerde
+ongecontroleerd, terwijl die hooks juist de afspraak zijn dat docs meebewegen
+met de code.
+
+`.github/workflows/ci.yml` draait dezelfde hooks op elke PR en elke push naar
+main. Geen tweede lijst met checks — dat is een tweede lijst die gaat afwijken.
+
+Proef voor de andere infra-repos: van de elf hebben er negen de
+docs-contract-hook, maar draaiden er twee hem in CI (cluster-infra,
+openwoo-app-config). Branch protection staat nergens aan, dus ook een groene
+check is nog niet verplicht; dat is een aparte stap.
+
+Daarbij: de hookbron stond nog op `codeberg.org/Conduction/techbook`. Sinds de
+migratie is dat `github.com/ConductionNL/techbook`, zelfde rev — in CI zou de
+oude host anders een externe afhankelijkheid op een verlaten platform zijn.
+
+Wat dit **niet** afdwingt: of de prozatekst nog klopt met de code. Hooks
+controleren structuur en uitvoerbare blokken; de rest is de periodieke
+semantische review.
+
+
 ## 2026-08-03 — publiek en grondwaarheid ontkoppeld (interne componentenlijst)
 
 ### Aanleiding
