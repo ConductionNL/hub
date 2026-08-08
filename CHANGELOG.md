@@ -19,6 +19,13 @@ Daarbij: de hookbron stond nog op `codeberg.org/Conduction/techbook`. Sinds de
 migratie is dat `github.com/ConductionNL/techbook`, zelfde rev — in CI zou de
 oude host anders een externe afhankelijkheid op een verlaten platform zijn.
 
+De proef vond meteen iets: `scripts/verify.sh` faalde *via* de hook maar
+slaagde direct. Git exporteert `GIT_DIR` c.s. naar hooks; die lekten door naar
+pytest en vandaar naar de `git`-aanroepen in de tests, die dan op déze repo
+committen in plaats van op hun tijdelijke repo. De hub-verify-hook heeft als
+pre-push dus nooit gewerkt. Het script knipt die variabelen nu los, zodat het
+niet uitmaakt hoe je hem aanroept.
+
 Wat dit **niet** afdwingt: of de prozatekst nog klopt met de code. Hooks
 controleren structuur en uitvoerbare blokken; de rest is de periodieke
 semantische review.
