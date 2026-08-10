@@ -3,15 +3,20 @@
 ## 2026-08-10 — git-omgeving schoonvegen vóór elke aanroep
 
 `cwd=` bepaalt niet op welke repo git werkt zodra `GIT_DIR` gezet is; dan
-wint `GIT_DIR`. Git zet die variabele in de omgeving van elke hook, en
-`scripts/verify.sh` is als pre-push hook gedeclareerd — de testsuite draait
-dus routinematig in precies die omgeving.
+wint `GIT_DIR`. Git zet die variabele in de omgeving van elke hook.
 
-Aangetoond in een kloon van deze repo: met alleen `GIT_DIR` gezet muteerde de
-suite de werkboom van de repo waar die variabele naar wees (`docs/index.md`
-gewijzigd, `docs/other.md` verwijderd). Zonder `GIT_DIR` gebeurt er niets,
-waardoor het bij los draaien nooit opvalt. De aanleiding was een incident in
-techbook, waar dezelfde fout 24 fixture-commits in de gepushte branch zette.
+**Dit was hier al bekend en al afgevangen** — zie de inzending van 2026-08-08
+hieronder: `scripts/verify.sh` unset die variabelen sindsdien vóór pytest.
+Deze wijziging verplaatst de bescherming van de *aanroeper* naar de *code*, en
+dat dekt twee gevallen die de guard in `verify.sh` niet dekt: de git-aanroepen
+van de MCP-server zelf (die kloont repos, en had dus hetzelfde probleem), en
+een pytest-run die niet via `verify.sh` loopt.
+
+Aangetoond in een kloon van deze repo, met pytest direct aangeroepen en alleen
+`GIT_DIR` gezet — dus buiten de bestaande guard om: de suite muteerde de
+werkboom van de repo waar die variabele naar wees (`docs/index.md` gewijzigd,
+`docs/other.md` verwijderd). De aanleiding lag in techbook, waar de guard níét
+bestond en dezelfde fout 24 fixture-commits in de gepushte branch zette.
 
 - `docs_mcp/content.py`: `REPO_ENV_VARS` + `clean_git_env()`; `_git_env()`
   gebruikt dat. Dit raakt niet alleen de tests — de MCP-server kloont zelf
