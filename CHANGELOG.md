@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-10 — docs-touched-gate erbij, techbook-pin op v0.2.0
+
+De hookset kende geen gate op §7 van de conventies: documentatie wijzigt
+in dezelfde PR als de code die zij beschrijft. `docs-contract` en
+`docs-claims` kijken naar de hele boom en nooit naar wat je pusht, dus
+code veranderen zonder de docs bij te werken kwam er ongehinderd langs.
+`docs-touched` is de diff-gate die dat wél ziet.
+
+- `.pre-commit-config.yaml`: techbook-pin van `edf269ee…` naar `v0.2.0`
+  en `- id: docs-touched` toegevoegd. Die twee horen in één wijziging:
+  de hook bestáát niet in `edf269ee…`, dus los toevoegen faalt, en een
+  pin op een niet-bestaande rev laat pre-commit al bij het uitchecken
+  van de techbook-repo stuklopen — dat zou óók `docs-contract`,
+  `docs-claims` en `verify` meenemen. Meteen de eerste tag in plaats van
+  een kale sha; daar stappen we vanaf.
+- `.docs-touched.yaml` (nieuw): `docs_mcp/**` omdat dat de MCP-server is
+  die `docs/gebruik.md` beschrijft (tools, bronkeuze, env-defaults), en
+  `scripts/**` omdat `clone_all.sh` de repo-scope bepaalt en
+  `verify.sh` de gate zelf is. `CLAUDE.md`, `.claude/**`, `tests/**`,
+  `.github/**` en lockfiles staan in `ignore`: de guardrails beschrijven
+  zichzelf en zijn mens-vereist.
+- `docs/agents.md`: sectie Gates met de verwijzing; `last_reviewed` bij.
+
+De gate staat op **`mode: warn`** — hij rapporteert volledig en geeft
+exit 0. Eerst een periode meekijken of de padregels op deze repo geen
+ruis opleveren; pas daarna naar `enforce`. Een gate die eeuwig alleen
+waarschuwt wordt genegeerd, dus de omzetting hoort na een rustige maand
+te gebeuren en niet later.
+
 ## 2026-08-10 — git-omgeving schoonvegen vóór elke aanroep
 
 `cwd=` bepaalt niet op welke repo git werkt zodra `GIT_DIR` gezet is; dan
