@@ -38,13 +38,21 @@ repo.
 
 `cwd=` bepaalt **niet** op welke repo git werkt zodra `GIT_DIR` in de
 omgeving staat: dan wint `GIT_DIR`. Git zet die variabele zelf voor élke
-hook, en `scripts/verify.sh` is als pre-push hook gedeclareerd — dus de
-testsuite draait routinematig in precies die omgeving.
+hook.
 
-Aangetoond op 2026-08-10 in een kloon van deze repo: met alleen `GIT_DIR`
-gezet muteerde de suite de werkboom van de repo waar die variabele naar
-wees (`docs/index.md` gewijzigd, `docs/other.md` verwijderd). Zonder
-`GIT_DIR` gebeurt er niets, en daarom valt het bij los draaien nooit op.
+Er zijn twee lagen bescherming, en je hebt ze allebei nodig:
+
+1. `scripts/verify.sh` unset de omleidende `GIT_*`-variabelen vóór pytest.
+   Dat dekt de gebruikelijke weg — de pre-push hook.
+2. Elke git-aanroep in `docs_mcp/` én in de tests loopt via
+   `content.clean_git_env()`. Dat dekt wat laag 1 níét ziet: de MCP-server
+   kloont zelf repos, en niet elke pytest-run gaat via `verify.sh`.
+
+Laat je laag 2 weg, dan is de isolatie afhankelijk van wie je aanroept.
+Aangetoond op 2026-08-10 in een kloon van deze repo, met pytest direct en
+alleen `GIT_DIR` gezet: de suite muteerde de werkboom van de repo waar die
+variabele naar wees (`docs/index.md` gewijzigd, `docs/other.md` verwijderd).
+Zonder `GIT_DIR` gebeurt er niets, en daarom valt het bij los draaien nooit op.
 
 Elke git-aanroep — in `docs_mcp/` én in de tests — loopt daarom via
 `content.clean_git_env()`. `TestHookOmgevingIsolatie` bewaakt dat met een
