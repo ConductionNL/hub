@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-10
 owner: info@conduction.nl
 ---
 
@@ -21,6 +21,16 @@ repo.
 | Cockpit-settings wijzigen (`.claude/settings.json`, incl. deny-regels en repo-scope) | mens-vereist | — | dit zíjn de guardrails: een agent die ze wijzigt keurt zijn eigen kooi; agent bereidt hooguit een diff voor |
 | `CLAUDE.md` wijzigen (de sessie-instructies zélf, incl. stap 0) | mens-vereist, voorstel-eerst | tekstueel | zelfde reden als de settings: dit is de kooi, niet het werk. Alleen op expliciete opdracht van een mens, en die opdracht hoort in de CHANGELOG-regel te staan (zo ging 2026-08-03: stap 0 op verzoek van Mark) |
 | Push | mens-vereist | — | pre-push gates draaien bij de mens |
+
+## Gates
+
+Naast `docs-contract` en `docs-claims` draait sinds 2026-08-10 de
+diff-gate `docs-touched`: raakt een push `docs_mcp/` of `scripts/`,
+dan hoort er documentatie mee te wijzigen. De padregels met hun reden
+staan in `.docs-touched.yaml` in de repo-root. De gate staat op
+`mode: warn` — hij rapporteert en blokkeert nog niet. Configformaat,
+vrijstelling (`Docs-not-needed`-trailer) en verificatie: techbook
+`docs/docs-touched.md`.
 
 ## Grondwaarheid en gedrag
 

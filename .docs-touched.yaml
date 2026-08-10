@@ -1,0 +1,54 @@
+# Docs-as-code gate (techbook docs/conventies.md §7).
+# Formaat, vrijstelling en verificatierecept: techbook docs/docs-touched.md.
+#
+# Dit bestand staat bewust in de repo-root en niet in args: van
+# .pre-commit-config.yaml — dat bestand wordt bij een uitrol in zijn
+# geheel herschreven, dus padlijsten daarin sneuvelen.
+version: 1
+
+# Eerst meekijken, niet blokkeren. Naar `enforce` zodra de gate een
+# maand rustig meedraait op deze repo.
+mode: warn
+
+docs:
+  - "docs/**"
+  - "README.md"
+
+rules:
+  - name: mcp-server
+    reason: >-
+      docs_mcp/ is de MCP-server die docs/gebruik.md beschrijft: de
+      tools, de bronkeuze (lokale werkkopie vóór clone), het
+      origin-veld en de env-variabelen met hun defaults. Wijzigt dat
+      gedrag, dan is gebruik.md per definitie achterhaald — en een
+      agent die de MCP als grondwaarheid gebruikt leest dan een
+      verkeerde beschrijving van zijn eigen bron.
+    paths:
+      - "docs_mcp/**"
+
+  - name: cockpit-scripts
+    reason: >-
+      scripts/clone_all.sh bepaalt welke zusterrepos meedoen en met
+      welke remote; scripts/verify.sh is de pre-push gate zelf. Beide
+      staan als operatie in docs/agents.md met hun verificatie, en
+      clone_all.sh moet gelijk blijven aan de repo-scope in
+      .claude/settings.json. Verandert het script, dan verandert de
+      afspraak die eromheen gedocumenteerd staat.
+    paths:
+      - "scripts/**"
+
+# Wijzigingen die aantoonbaar geen documentatie vragen.
+ignore:
+  # De kooi, niet het werk: agent-instructies en cockpit-guardrails zijn
+  # mens-vereist (docs/agents.md) en beschrijven zichzelf.
+  - "CLAUDE.md"
+  - ".claude/**"
+  - ".github/**"
+  - "tests/**"
+  - "CHANGELOG.md"
+  - "uv.lock"
+  - "**/*.lock"
+
+escape:
+  trailer: "Docs-not-needed"
+  min_reason_len: 10
