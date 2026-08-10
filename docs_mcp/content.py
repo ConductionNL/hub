@@ -21,6 +21,41 @@ HANDBOOK_MKDOCS_URL = (
     "https://raw.githubusercontent.com/ConductionNL/handbook/main/mkdocs.yml")
 DEFAULT_MAX_AGE_SECONDS = 3600
 
+# Variabelen die een git-aanroep naar een ándere repo omleiden. Noch `cwd=`
+# noch `-C <pad>` overrulet ze: staat GIT_DIR gezet, dan wint GIT_DIR. Git
+# zet ze zelf in de omgeving van elke hook, en deze code draait onder meer
+# via `scripts/verify.sh`, dat als pre-push hook is gedeclareerd.
+#
+# Dit is geen theoretisch risico. Aangetoond op 2026-08-10 in een kloon van
+# deze repo: met alleen GIT_DIR gezet muteerde de testsuite de werkboom van
+# de repo waar die variabele naar wees (`docs/index.md` gewijzigd,
+# `docs/other.md` verwijderd). Zonder GIT_DIR gebeurt er niets — daarom valt
+# het bij los draaien nooit op.
+REPO_ENV_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_NAMESPACE",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_PREFIX",
+    "GIT_INDEX_VERSION",
+)
+
+
+def clean_git_env(environ=None) -> dict:
+    """De omgeving zonder de variabelen die git naar een andere repo omleiden.
+
+    Gebruik dit voor élke git-aanroep — ook in tests die fixture-repo's
+    aanmaken. Zie REPO_ENV_VARS voor het waarom.
+    """
+    env = dict(os.environ if environ is None else environ)
+    for var in REPO_ENV_VARS:
+        env.pop(var, None)
+    return env
+
 # Limieten zijn env-tunable, nooit hardgecodeerd. De git-timeout staat
 # bewust ruim onder de 120s tool-limiet van een agent-call: één trage of
 # onbereikbare remote mag nooit de hele call opeten (dat was precies het
@@ -234,7 +269,7 @@ class ContentStore:
         return note
 
     def _git_env(self) -> dict:
-        env = dict(os.environ)
+        env = clean_git_env()
         env["GIT_TERMINAL_PROMPT"] = "0"  # nooit interactief om creds vragen
         return env
 
