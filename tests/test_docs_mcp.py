@@ -12,6 +12,17 @@ import pytest
 from docs_mcp import content as c
 from docs_mcp import search as s
 
+# Elke git-aanroep in deze suite loopt hierlangs. Dat is geen nette-code-
+# detail maar de kern van de isolatie: `cwd=` bepaalt niet op welke repo git
+# werkt zodra GIT_DIR gezet is — dan wint GIT_DIR. Git zet die variabele in
+# de omgeving van elke hook, en `scripts/verify.sh` (dat deze suite draait)
+# is als pre-push hook gedeclareerd. Zonder de schoonmaak schrijven deze
+# fixtures in de repo die je op dat moment pusht. Zie c.REPO_ENV_VARS.
+def git(repo, *args, **kwargs):
+    return subprocess.run(["git", *args], cwd=repo, check=True,
+                          env=c.clean_git_env(), **kwargs)
+
+
 MKDOCS = """
 plugins:
   - search
@@ -53,10 +64,10 @@ def make_source_repo(tmp_path, name="demo"):
     (repo / "docs").mkdir(parents=True)
     (repo / "docs" / "index.md").write_text(PAGE)
     (repo / "docs" / "other.md").write_text("# Ander onderwerp\n\nNiets.\n")
-    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
-                    "commit", "-qm", "init"], cwd=repo, check=True)
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-qm", "init")
     return repo
 
 
@@ -224,9 +235,9 @@ class TestContentStore:
         comp = make_component(repo)
         store.pages(comp)
         (repo / "docs" / "nieuw.md").write_text("# Nieuw\n")
-        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
-                        "commit", "-qm", "meer"], cwd=repo, check=True)
+        git(repo, "add", "-A")
+        git(repo, "-c", "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-qm", "meer")
         assert "nieuw.md" in {p.path for p in store.pages(comp)}
 
 
@@ -264,8 +275,7 @@ class TestLokaleBron:
                                                      monkeypatch):
         fleet, repo = self._fleet(tmp_path)
         monkeypatch.setenv("DOCS_MCP_LOCAL_ROOT", str(fleet))
-        subprocess.run(["git", "checkout", "-q", "-b", "chore/wip"], cwd=repo,
-                       check=True)
+        git(repo, "checkout", "-q", "-b", "chore/wip")
         (repo / "docs" / "index.md").write_text(PAGE + "\nWIP-regel.\n")
         comp = c.Component(name="demo", branch="main", docs_dir="docs",
                            clone_url="https://voorbeeld.invalid/x/demo")
@@ -337,10 +347,49 @@ class TestSymlinkGuard:
         geheim = tmp_path / "geheim.md"
         geheim.write_text("# prive-inhoud buiten de boom\n")
         (repo / "docs" / "lek.md").symlink_to(geheim)
-        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
-                        "commit", "-qm", "symlink"], cwd=repo, check=True)
+        git(repo, "add", "-A")
+        git(repo, "-c", "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-qm", "symlink")
         store = c.ContentStore(tmp_path / "cache")
         paths = {p.path for p in store.pages(make_component(repo))}
         assert "lek.md" not in paths
         assert "index.md" in paths
+
+
+# --- isolatie onder een hook-omgeving ------------------------------------
+#
+# Deze klasse bestaat om één concreet incident. Op 2026-08-10 bleek dat deze
+# suite, gedraaid met GIT_DIR gezet (zoals git dat doet voor élke hook, en
+# `scripts/verify.sh` is als pre-push hook gedeclareerd), de werkboom muteert
+# van de repo waar die variabele naar wijst: `docs/index.md` gewijzigd,
+# `docs/other.md` verwijderd. `cwd=` beschermt daar niet tegen.
+
+class TestHookOmgevingIsolatie:
+    def test_repo_env_vars_worden_gestript(self):
+        vuil = {var: "/pad/naar/andere/repo" for var in c.REPO_ENV_VARS}
+        schoon = c.clean_git_env({**vuil, "PATH": "/usr/bin"})
+        for var in c.REPO_ENV_VARS:
+            assert var not in schoon, f"{var} lekt door naar het subproces"
+        assert schoon["PATH"] == "/usr/bin"
+
+    def test_fixtures_raken_de_repo_van_git_dir_niet(self, tmp_path,
+                                                     monkeypatch):
+        """Met GIT_DIR gezet blijft de lokvogel-repo onaangeroerd."""
+        lokvogel = make_source_repo(tmp_path, name="lokvogel")
+        voor = git(lokvogel, "rev-parse", "HEAD",
+                   capture_output=True, text=True).stdout.strip()
+
+        monkeypatch.setenv("GIT_DIR", str(lokvogel / ".git"))
+
+        # Precies wat de rest van de suite doet, nu onder een hook-omgeving.
+        repo = make_source_repo(tmp_path, name="fixture")
+        store = c.ContentStore(tmp_path / "cache")
+        assert "index.md" in {p.path for p in store.pages(make_component(repo))}
+
+        monkeypatch.delenv("GIT_DIR")
+        na = git(lokvogel, "rev-parse", "HEAD",
+                 capture_output=True, text=True).stdout.strip()
+        assert na == voor, "de lokvogel-repo heeft commits gekregen"
+        vuil = git(lokvogel, "status", "--porcelain",
+                   capture_output=True, text=True).stdout
+        assert vuil == "", f"de lokvogel-werkboom is aangeraakt:\n{vuil}"

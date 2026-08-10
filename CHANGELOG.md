@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-10 — git-omgeving schoonvegen vóór elke aanroep
+
+`cwd=` bepaalt niet op welke repo git werkt zodra `GIT_DIR` gezet is; dan
+wint `GIT_DIR`. Git zet die variabele in de omgeving van elke hook, en
+`scripts/verify.sh` is als pre-push hook gedeclareerd — de testsuite draait
+dus routinematig in precies die omgeving.
+
+Aangetoond in een kloon van deze repo: met alleen `GIT_DIR` gezet muteerde de
+suite de werkboom van de repo waar die variabele naar wees (`docs/index.md`
+gewijzigd, `docs/other.md` verwijderd). Zonder `GIT_DIR` gebeurt er niets,
+waardoor het bij los draaien nooit opvalt. De aanleiding was een incident in
+techbook, waar dezelfde fout 24 fixture-commits in de gepushte branch zette.
+
+- `docs_mcp/content.py`: `REPO_ENV_VARS` + `clean_git_env()`; `_git_env()`
+  gebruikt dat. Dit raakt niet alleen de tests — de MCP-server kloont zelf
+  repos en kon onder een gelekte `GIT_DIR` de verkeerde repo bewerken.
+- `tests/test_docs_mcp.py`: alle git-aanroepen via één `git()`-helper met
+  die schone omgeving, plus `TestHookOmgevingIsolatie` met een lokvogel-repo
+  die na de hele suite onaangeroerd moet zijn.
+- `docs/agents.md`: de claim "gelijke code → gelijke uitkomst" gold niet
+  zolang de uitkomst van `GIT_DIR` afhing; aangevuld met het waarom.
+
 ## 2026-08-08 — docs-gate ook server-side
 
 De hooks in `.pre-commit-config.yaml` draaiden alleen bij wie
