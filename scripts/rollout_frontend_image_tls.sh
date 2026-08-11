@@ -122,6 +122,10 @@ commits_ahead() {
   git -C "$1" rev-list --count origin/main..main 2>/dev/null || echo "?"
 }
 
+commits_behind() {
+  git -C "$1" rev-list --count main..origin/main 2>/dev/null || echo "?"
+}
+
 is_pushed() {
   [[ "$(commits_ahead "$1")" == "0" ]]
 }
@@ -185,6 +189,19 @@ assert_clean_main() {
   if [[ -n "$dirty" ]]; then
     printf '%s\n' "$dirty" | sed 's/^/  /' >&2
     fail "${label} heeft ongecommitte wijzigingen — commit ze of zet ze weg"
+  fi
+  # Ook achterstand meten. `commits_ahead` alleen is misleidend: een repo kan
+  # tegelijk vóór EN achter zijn, en dan meldde preflight "1 commit klaar" waarna
+  # de push alsnog afketste op non-fast-forward. Dat gebeurde twee keer, doordat
+  # er tussen preflight en push tenant-PR's op main landden.
+  local behind
+  behind="$(commits_behind "$dir")"
+  if [[ "$behind" != "0" ]]; then
+    warn "${label} loopt ${behind} commit(s) achter op origin/main — de push zou afketsen."
+    info "  Draai: git -C ${dir} merge origin/main"
+    info "  Controleer het resultaat (conflicten in een tenantbestand zijn een"
+    info "  inhoudelijke keuze) en start deze stap opnieuw."
+    fail "${label}: eerst bijwerken"
   fi
   ok "${label}: main, schoon, $(commits_ahead "$dir") commit(s) vóór origin/main"
 }
@@ -586,7 +603,7 @@ cmd_status() {
     label="${pair#*:}"
     printf '  %-16s branch=%-8s %s\n' "$label" \
       "$(git -C "$dir" branch --show-current 2>/dev/null)" \
-      "$(is_pushed "$dir" && echo 'gelijk aan origin/main' || echo "$(commits_ahead "$dir") commit(s) te pushen")"
+      "$(is_pushed "$dir" && echo 'gelijk aan origin/main' || echo "$(commits_ahead "$dir") vooruit, $(commits_behind "$dir") achter")"
   done
 
   info
