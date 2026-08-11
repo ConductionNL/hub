@@ -104,6 +104,9 @@ banner() {
 confirm() {
   local answer
   [[ "$ASSUME_YES" -eq 1 ]] && return 0
+  # Zonder TTY levert `read` meteen een lege regel op en zou elke vraag
+  # stilzwijgend "nee" worden. main() vangt dat vooraf af; dit is de vangnet.
+  [[ -t 0 ]] || fail "geen TTY om '$1' te beantwoorden — draai met --yes"
   read -r -p "$1 [j/N] " answer
   [[ "$answer" == "j" || "$answer" == "J" ]]
 }
@@ -435,6 +438,17 @@ main() {
   for arg in "$@"; do
     [[ "$arg" == "--yes" ]] && ASSUME_YES=1
   done
+
+  # Stappen die iets muteren vragen om bevestiging. Zonder TTY kan dat niet, en
+  # dan zou het script pas halverwege stuklopen op een vraag die niemand kan
+  # beantwoorden. Vooraf stoppen, met de oplossing erbij.
+  case "$step" in
+    2|3|4|all|rollback)
+      if [[ ! -t 0 ]] && [[ "$ASSUME_YES" -eq 0 ]]; then
+        fail "geen interactieve shell — draai '${step} --yes', of start het script vanaf een terminal"
+      fi
+      ;;
+  esac
 
   case "$step" in
     status) cmd_status ;;
