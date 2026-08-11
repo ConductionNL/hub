@@ -199,6 +199,22 @@ run_verify() {
   fi
 }
 
+# Welke bestanden conflicteren écht? `git diff --name-only HEAD...ref` is hier
+# het verkeerde gereedschap: dat toont álle verschillen, dus ook bestanden die
+# alleen op de andere kant nieuw zijn en probleemloos mergen. Dat gebeurde op
+# 2026-08-11: tenant-epe-prod.yaml stond in de conflictlijst terwijl er één
+# echt conflict was. `merge-tree` doet de merge in het geheugen — geen index,
+# geen werkboom — en noemt precies de conflicterende paden.
+#
+# Uitvoer van merge-tree bij een conflict: eerst de tree-oid, dan de paden, dan
+# een lege regel met daarna de meldingen. Alleen het middenstuk willen we. De
+# exitcode is 1 bij een conflict, dus `|| true`, anders breekt pipefail af.
+conflicting_files() {
+  local ref="$1" out
+  out="$(git -C "$NB_DIR" merge-tree --write-tree --name-only HEAD "$ref" 2>/dev/null || true)"
+  printf '%s\n' "$out" | sed -n '2,/^$/p' | sed '/^$/d'
+}
+
 # Merge zonder ooit zelf een conflict op te lossen. Een conflict in een
 # tenantbestand is een inhoudelijke keuze en geen scriptbeslissing: afbreken,
 # de werkboom teruggeven zoals hij was, en het aan de mens laten.
@@ -225,7 +241,7 @@ merge_ref() {
 
   git -C "$NB_DIR" merge --abort 2>/dev/null || true
   info "Conflicterende bestanden:"
-  git -C "$NB_DIR" diff --name-only "HEAD...${ref}" | sed 's/^/  /'
+  conflicting_files "$ref" | sed 's/^/  /'
   fail "${label} conflicteert met main. De merge is afgebroken en de werkboom staat weer zoals hij was. Los het met de hand op: git -C ${NB_DIR} merge ${ref}"
 }
 
@@ -576,9 +592,15 @@ usage() {
 main() {
   local step="${1:-status}"
   shift || true
+  # Onbekende argumenten weigeren, niet slikken. `status all` liep op
+  # 2026-08-11 als `status` omdat alleen $1 werd gelezen — de gebruiker dacht
+  # dat hij de uitrol startte en zag alleen een rapportje.
   local arg
   for arg in "$@"; do
-    [[ "$arg" == "--yes" ]] && ASSUME_YES=1
+    case "$arg" in
+      --yes) ASSUME_YES=1 ;;
+      *) fail "onbekend argument '${arg}' — één stap per aanroep, zie --help" ;;
+    esac
   done
 
   # Stappen die iets muteren vragen om bevestiging. Zonder TTY kan dat niet, en

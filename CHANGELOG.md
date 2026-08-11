@@ -45,6 +45,18 @@ secret niet (`prune: true, selfHeal: true` staat aan op `epe-prod-reactfront`),
 en zonder cert-manager-annotaties claimt cert-manager het niet. De privésleutel
 gaat alleen door de pipe, nooit naar schijf.
 
+### Gerepareerd — twee defecten die de eerste run blootlegde
+
+- **De conflictlijst noemde te veel.** `git diff --name-only HEAD...ref` toont
+  álle verschillen, dus ook bestanden die alleen op de andere kant nieuw zijn en
+  probleemloos mergen. In de praktijk stond `tenant-epe-prod.yaml` in de lijst
+  terwijl er één echt conflict was. Nu via `git merge-tree --write-tree
+  --name-only`: dat doet de merge in het geheugen — geen index, geen werkboom —
+  en noemt precies de conflicterende paden.
+- **Onbekende argumenten werden stil geslikt.** `status all` liep als `status`,
+  omdat alleen `$1` werd gelezen. Wie de uitrol dacht te starten, kreeg een
+  rapportje. Nu weigert het script elk argument dat niet `--yes` is.
+
 Stap 5 is een **harde toets**, geen rapportage: zes verwachtingen, exitcode 1 als
 er één niet uitkomt. Daarnaast meldt hij de resterende geldigheidsdagen, want met
 `issuer: none` bestaat er geen `Certificate` en dus geen expiry-metriek —
