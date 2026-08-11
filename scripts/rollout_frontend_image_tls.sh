@@ -138,6 +138,35 @@ expected_tls_secret() {
   yq eval '.tenant.frontend.tls.secretName // ""' "${NB_DIR}/${TENANT_FILE}"
 }
 
+# Is de NIEUWE ApplicationSet-template toegepast in het cluster? `templatePatch`
+# bestaat alleen in de nieuwe versie, dus dit is het enige eerlijke signaal.
+#
+# Niet op de image-tag wachten: die rendert de OUDE template ook, want die kende
+# `frontend.tag` al. Daardoor meldde stap 4 "opgepikt" terwijl er niets nieuws
+# was toegepast en stap 5 vervolgens op twee image-verwachtingen viel.
+appset_is_new() {
+  local patch
+  patch="$(kubectl -n argocd get applicationset react-tenants \
+    -o jsonpath='{.spec.templatePatch}' 2>/dev/null || echo '')"
+  [[ -n "$patch" ]]
+}
+
+# Toon het sync-window dat een platform-sync tegenhoudt. De react-platform
+# AppProject blokkeert doordeweeks overdag; met manualSync=false helpt handmatig
+# synchroniseren dan ook niet. Zonder deze uitleg lijkt een geblokkeerde uitrol
+# op een kapotte uitrol.
+show_sync_windows() {
+  local windows
+  windows="$(kubectl -n argocd get appproject react-platform \
+    -o jsonpath='{range .spec.syncWindows[*]}  {.kind} schedule={.schedule} duur={.duration} apps={.applications} manualSync={.manualSync}{"\n"}{end}' \
+    2>/dev/null || echo '')"
+  [[ -z "$windows" ]] && return 0
+  info "Sync-windows op AppProject react-platform:"
+  printf '%s\n' "$windows"
+  info "Valt 'nu' in een deny-window, dan wacht de ApplicationSet tot dat venster"
+  info "voorbij is. Dat is een guardrail, geen storing."
+}
+
 assert_clean_main() {
   local dir="$1" label="$2" branch dirty
   branch="$(git -C "$dir" branch --show-current)"
@@ -367,9 +396,29 @@ step_4_push_rb() {
 
   run_verify "$RB_DIR" "react-base"
   push_main "$RB_DIR" "react-base"
-  # react-base wijzigt de ApplicationSet zelf; de image-pin is dan het bewijs
-  # dat de nieuwe template is toegepast.
-  wait_for_argo "$(yq eval '.tenant.frontend.tag' "${NB_DIR}/${TENANT_FILE}")"
+
+  # react-base wijzigt de ApplicationSet zelf. Die wordt uitgerold door de
+  # react-platform root-Application, en die valt onder het sync-window — dus
+  # wachten we op de ApplicationSet en niet op de Application.
+  local deadline=$((SECONDS + ARGO_WAIT_SECONDS))
+  info "Wachten tot de nieuwe ApplicationSet is toegepast (max ${ARGO_WAIT_SECONDS}s)..."
+  while ((SECONDS < deadline)); do
+    if appset_is_new; then
+      ok "ApplicationSet bijgewerkt (templatePatch aanwezig)"
+      wait_for_argo "$(yq eval '.tenant.frontend.repository // ""' "${NB_DIR}/${TENANT_FILE}")"
+      return 0
+    fi
+    printf '  nog de oude ApplicationSet ... \r'
+    sleep "$ARGO_POLL_SECONDS"
+  done
+
+  info
+  warn "De ApplicationSet is na ${ARGO_WAIT_SECONDS}s nog niet bijgewerkt."
+  show_sync_windows
+  info
+  info "De push is geland; alleen de uitrol wacht. Draai stap 5 opnieuw zodra"
+  info "het venster open is."
+  return 0
 }
 
 # --------------------------------------------------------------------------
@@ -380,6 +429,16 @@ step_5_verify() {
   local want_image want_secret
   want_image="$(expected_image)" || fail "kan de verwachte image niet afleiden"
   want_secret="$(expected_tls_secret)"
+
+  # Meld de oorzaak vóór de symptomen. Is de nieuwe ApplicationSet nog niet
+  # toegepast, dan zijn de twee image-verwachtingen hieronder gegarandeerd rood
+  # en zegt dat niets over de wijziging zelf.
+  if ! appset_is_new; then
+    warn "De nieuwe ApplicationSet is nog NIET toegepast in het cluster."
+    warn "De twee image-verwachtingen hieronder falen daardoor sowieso."
+    show_sync_windows
+    info
+  fi
 
   # 1. Landt de image-pin uit git op de bestaande Deployment?
   check "draaiende image" "$want_image" \
