@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-11 — uitrolscript frontend image-pin en BYO-certificaat
+
+### Toegevoegd
+
+`scripts/rollout_frontend_image_tls.sh` — voert de uitrol uit die over
+Nextcloud-base en react-base heen loopt, in de enige volgorde die veilig is.
+
+Trunk-based: het werk staat op `main` in beide repo's, geen branches en geen
+PR's. Infra is één beheerder, dus een PR-gate levert hier geen tweede paar ogen
+op — alleen stappen tussen een wijziging en het cluster.
+
+De volgorde blijft wél bindend, en dát is de reden dat het een script is en
+geen lijstje. React-base maakt de per-tenant image-pin bindend; landt dat op de
+remote vóór de drift-uitlijning in Nextcloud-base, dan rolt Argo acht tenants
+terug naar `latest`/`dev`, waarvan drie in productie. En het TLS-secret moet
+bestaan vóór de tenant-wijziging, anders serveert `canary.accept.openwoo.app`
+even geen bruikbaar cert.
+
+Vijf stappen plus `rollback`, elk apart draaibaar en idempotent: preflight,
+secret zaaien, push Nextcloud-base, push react-base, cluster-verificatie.
+`all` doet het geheel. Stap 4 weigert zolang stap 3 niet op de remote staat,
+stap 3 weigert zonder TLS-secret.
+
+Stap 5 is een **harde toets**, geen rapportage: zes verwachtingen, exitcode 1
+als er één niet uitkomt. Alle zes worden gemeten voordat het script stopt —
+anders zie je bij een uitrol alleen de eerste afwijking. Gecontroleerd tegen de
+stand vóór uitrol: vijf van de zes falen daar, en precies de juiste vijf.
+
+De verwachte image wordt uit het tenant-bestand zelf afgeleid, niet uit een
+constante in het script — anders lopen die twee uiteen zodra iemand de proef
+bijstelt.
+
+Pushen gebeurt zonder enige `--force`-variant. Wijst de remote af, dan stopt het
+script en verwijst het naar `pull --rebase`; dat is een moment voor een mens.
+
+Stap 2 schrijft sleutelmateriaal naar een `mktemp`-map met 0700 en shredt die
+daarna; het secret staat niet in git.
+
+`ARGO_WAIT_SECONDS` en `ARGO_POLL_SECONDS` zijn env-tunable — een trage sync
+hoort geen reden te zijn om het script te patchen.
+
 ## 2026-08-10 — docs-touched-gate erbij, techbook-pin op v0.2.0
 
 De hookset kende geen gate op §7 van de conventies: documentatie wijzigt
