@@ -184,21 +184,71 @@ push_main() {
 
   confirm "Push ${label} naar origin/main?" || fail "afgebroken door gebruiker"
 
-  # Geen --force in welke vorm dan ook. Wijst de remote af, dan is main
-  # verderop en moet een mens kijken wat er tussen zit.
-  if ! git -C "$dir" push origin main; then
-    fail "push afgewezen — origin/main is verderop. Doe 'git -C ${dir} pull --rebase origin main', controleer het resultaat en draai deze stap opnieuw."
+  # Geen --force in welke vorm dan ook. Een afwijzing heeft twee heel
+  # verschillende oorzaken en die niet uit elkaar houden stuurt je de verkeerde
+  # kant op: `pull --rebase` helpt niets tegen een branch-ruleset.
+  local out rc
+  out="$(mktemp)"
+  set +e
+  git -C "$dir" push origin main >"$out" 2>&1
+  rc=$?
+  set -e
+  cat "$out"
+
+  if [[ $rc -eq 0 ]]; then
+    rm -f "$out"
+    ok "${label} gepusht naar origin/main"
+    return 0
   fi
-  ok "${label} gepusht naar origin/main"
+
+  if grep -qE 'GH013|repository rule violations|protected branch|must be made through a pull request' "$out"; then
+    rm -f "$out"
+    fail "${label}: GitHub weigert een directe push naar main — er staat een branch-ruleset op (pull request en/of verplichte checks). Trunk-based werkt hier niet zonder die regel aan te passen. Kies: een PR openen, of de ruleset aanpassen in de repo-instellingen. Dat laatste is een bewuste beveiligingskeuze; dit script doet dat niet voor je."
+  fi
+
+  if grep -qE 'non-fast-forward|fetch first|behind its remote' "$out"; then
+    rm -f "$out"
+    fail "${label}: origin/main is verderop. Doe 'git -C ${dir} pull --rebase origin main', controleer het resultaat en draai deze stap opnieuw."
+  fi
+
+  rm -f "$out"
+  fail "${label}: push afgewezen, zie de uitvoer hierboven"
 }
 
-# Wacht tot de Argo Application de gepushte revisie draait en Synced/Healthy is.
+# Wacht tot de ApplicationSet de nieuwe tenant-inhoud heeft opgepikt EN de
+# Application Synced/Healthy is.
+#
+# Alleen op Synced/Healthy wachten is te weinig: de Application stond al
+# Synced/Healthy met de OUDE inhoud, dus de wachtlus keerde meteen terug en
+# stap 5 mat een cluster dat nog niets van de push had gezien. De git-generator
+# van de ApplicationSet pollt los van de Application-sync, dus we wachten eerst
+# tot een verwachte string in de gerenderde values staat.
+#
+# $1 = tekst die in spec.sources[0].helm.values moet verschijnen (leeg = alleen
+#      op sync/health wachten)
 wait_for_argo() {
+  local needle="${1:-}"
   local deadline=$((SECONDS + ARGO_WAIT_SECONDS))
-  local sync health
+  local sync health values seen=0
 
-  info "Wachten tot ${ARGO_APP} Synced/Healthy is (max ${ARGO_WAIT_SECONDS}s)..."
+  if [[ -n "$needle" ]]; then
+    info "Wachten tot de ApplicationSet '${needle}' rendert (max ${ARGO_WAIT_SECONDS}s)..."
+  fi
+
   while ((SECONDS < deadline)); do
+    if [[ -n "$needle" && "$seen" -eq 0 ]]; then
+      values="$(kubectl -n argocd get application "$ARGO_APP" \
+        -o jsonpath='{.spec.sources[0].helm.values}' 2>/dev/null || echo '')"
+      if [[ "$values" == *"$needle"* ]]; then
+        seen=1
+        ok "ApplicationSet heeft de nieuwe tenant-inhoud opgepikt"
+      else
+        printf '  generator nog op de oude inhoud ... \r'
+        sleep "$ARGO_POLL_SECONDS"
+        continue
+      fi
+    fi
+
     sync="$(kubectl -n argocd get application "$ARGO_APP" \
       -o jsonpath='{.status.sync.status}' 2>/dev/null || echo '')"
     health="$(kubectl -n argocd get application "$ARGO_APP" \
@@ -212,8 +262,12 @@ wait_for_argo() {
   done
 
   info
-  warn "Argo is na ${ARGO_WAIT_SECONDS}s nog ${sync:-?}/${health:-?}."
-  warn "Niet per se fout — de git-generator pollt traag. Draai stap 5 straks nog eens."
+  if [[ -n "$needle" && "$seen" -eq 0 ]]; then
+    warn "De ApplicationSet rendert '${needle}' na ${ARGO_WAIT_SECONDS}s nog niet."
+    warn "De git-generator pollt traag; verhoog ARGO_WAIT_SECONDS of draai stap 5 straks."
+  else
+    warn "Argo is na ${ARGO_WAIT_SECONDS}s nog ${sync:-?}/${health:-?}."
+  fi
   return 0
 }
 
@@ -295,7 +349,9 @@ step_3_push_nb() {
 
   run_verify "$NB_DIR" "Nextcloud-base"
   push_main "$NB_DIR" "Nextcloud-base"
-  wait_for_argo
+  # Wacht op het TLS-secret uit het tenant-bestand: dát is het eerste stukje
+  # nieuwe inhoud dat de generator moet renderen.
+  wait_for_argo "$(expected_tls_secret)"
 }
 
 # --------------------------------------------------------------------------
@@ -311,7 +367,9 @@ step_4_push_rb() {
 
   run_verify "$RB_DIR" "react-base"
   push_main "$RB_DIR" "react-base"
-  wait_for_argo
+  # react-base wijzigt de ApplicationSet zelf; de image-pin is dan het bewijs
+  # dat de nieuwe template is toegepast.
+  wait_for_argo "$(yq eval '.tenant.frontend.tag' "${NB_DIR}/${TENANT_FILE}")"
 }
 
 # --------------------------------------------------------------------------
