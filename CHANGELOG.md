@@ -18,10 +18,20 @@ terug naar `latest`/`dev`, waarvan drie in productie. En het TLS-secret moet
 bestaan vóór de tenant-wijziging, anders serveert `canary.accept.openwoo.app`
 even geen bruikbaar cert.
 
-Vijf stappen plus `rollback`, elk apart draaibaar en idempotent: preflight,
-secret zaaien, push Nextcloud-base, push react-base, cluster-verificatie.
-`all` doet het geheel. Stap 4 weigert zolang stap 3 niet op de remote staat,
-stap 3 weigert zonder TLS-secret.
+Zes stappen plus `rollback`, elk apart draaibaar en idempotent: preflight,
+secret zaaien, push Nextcloud-base, push react-base, push openwoo-app-config
+(het portaal), cluster-verificatie. `all` doet het geheel.
+
+De volgorde zit in de stappen zelf: stap 3 weigert zonder TLS-secret, stap 4
+zolang stap 3 niet op de remote staat, en stap 5 zolang de nieuwe
+ApplicationSet niet in het cluster actief is. Dat laatste omdat het nieuwe
+portaalformulier registry- en repository-velden aanbiedt die alleen de nieuwe
+ApplicationSet begrijpt — eerder uitrollen laat een operator velden zetten die
+stil genegeerd worden.
+
+De portal-push start `.github/workflows/image.yml`; die bouwt het image en zet
+een `chore(deploy)`-commit waar Argo op uitrolt. Het script wacht op die commit,
+zodat "gepusht" niet met "draait" wordt verward.
 
 Stap 5 is een **harde toets**, geen rapportage: zes verwachtingen, exitcode 1
 als er één niet uitkomt. Alle zes worden gemeten voordat het script stopt —

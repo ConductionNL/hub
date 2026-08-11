@@ -5,9 +5,9 @@
 # scripts/rollout_frontend_image_tls.sh — rolt de frontend-image-pin, de
 # tenant-validatie en de BYO-certificaattest uit, van begin tot eind.
 #
-# Trunk-based: het werk staat op `main` in Nextcloud-base en react-base. Geen
-# branches, geen PR's. Het script zaait het secret, pusht beide repo's, wacht op
-# Argo en verifieert daarna op het cluster.
+# Trunk-based: het werk staat op `main` in Nextcloud-base, react-base en
+# openwoo-app-config. Geen branches, geen PR's. Het script zaait het secret,
+# pusht de drie repo's, wacht op Argo en verifieert daarna op het cluster.
 #
 # De VOLGORDE is bindend, en dat is de reden dat dit een script is en geen
 # lijstje:
@@ -17,16 +17,21 @@
 #     terug naar `latest`/`dev`, waarvan drie in productie.
 #   * Het TLS-secret moet bestaan vóór de tenant-wijziging, anders serveert
 #     canary.accept.openwoo.app even geen bruikbaar cert.
+#   * Het portaal gaat als LAATSTE. Het nieuwe formulier biedt registry- en
+#     repository-velden aan die alleen de NIEUWE ApplicationSet begrijpt; eerder
+#     uitrollen laat een operator velden zetten die stil genegeerd worden.
 #
 # Elke stap is idempotent: al gepusht, secret al aanwezig of al gesynct levert
 # een melding op en geen fout. Draai gerust opnieuw.
 #
-# Stap 5 is een echte toets, geen rapportage: hij faalt met exitcode 1 als een
+# Stap 6 is een echte toets, geen rapportage: hij faalt met exitcode 1 als een
 # verwachting niet uitkomt.
 #
 # Writes: cluster (één TLS-secret in namespace canary-accept), en `git push
-#         origin main` in twee repo's. Stap 2 schrijft tijdelijk sleutelmateriaal
-#         naar een mktemp-map met 0700 en shredt die daarna.
+#         origin main` in drie repo's. De portal-push start een image-build die
+#         zichzelf uitrolt via een `chore(deploy)`-commit. Stap 2 schrijft
+#         tijdelijk sleutelmateriaal naar een mktemp-map met 0700 en shredt die
+#         daarna.
 # Idempotent: ja, per stap
 # Requires: bash, git, kubectl, openssl, yq, go
 #
@@ -34,15 +39,16 @@
 #   ./rollout_frontend_image_tls.sh status     # waar staan we, wijzigt niets
 #   ./rollout_frontend_image_tls.sh all        # alles, met bevestiging per stap
 #   ./rollout_frontend_image_tls.sh all --yes  # alles, zonder vragen
-#   ./rollout_frontend_image_tls.sh 4          # één stap
+#   ./rollout_frontend_image_tls.sh 6          # één stap
 #   ./rollout_frontend_image_tls.sh rollback   # canary-proeven terugdraaien
 #
 # Stappen:
-#   1  preflight   tooling, cluster, main-stand, verify.sh in beide repo's
+#   1  preflight   tooling, cluster, main-stand, verify.sh in alle drie de repo's
 #   2  secret      canary-selfsigned-tls zaaien in namespace canary-accept
 #   3  push-nb     Nextcloud-base naar origin/main + wachten tot Argo synct
 #   4  push-rb     react-base naar origin/main + wachten tot Argo synct
-#   5  verify      harde toets op het cluster (faalt met exitcode 1)
+#   5  push-portal openwoo-app-config naar origin/main + wachten op de image-build
+#   6  verify      harde toets op het cluster (faalt met exitcode 1)
 #
 # Crontab: niet plannen. Dit is een eenmalige uitrol met een mens erbij.
 
@@ -52,6 +58,7 @@ HUB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly HUB_DIR
 readonly NB_DIR="${HUB_DIR}/../Nextcloud-base"
 readonly RB_DIR="${HUB_DIR}/../react-base"
+readonly PORTAL_DIR="${HUB_DIR}/../openwoo-app-config"
 
 readonly TENANT_NS="canary-accept"
 readonly TENANT_FILE="nextcloud-platform/values/tenants/tenant-canary-accept.yaml"
@@ -317,8 +324,10 @@ step_1_preflight() {
   git -C "$RB_DIR" fetch -q origin main
   ok "origin/main opgehaald"
 
+  git -C "$PORTAL_DIR" fetch -q origin main
   assert_clean_main "$NB_DIR" "Nextcloud-base"
   assert_clean_main "$RB_DIR" "react-base"
+  assert_clean_main "$PORTAL_DIR" "openwoo-app-config"
 
   expected_image >/dev/null \
     || fail "${TENANT_FILE} pint geen repository+tag — de proef zou niets bewijzen"
@@ -326,6 +335,7 @@ step_1_preflight() {
 
   run_verify "$NB_DIR" "Nextcloud-base"
   run_verify "$RB_DIR" "react-base"
+  run_verify "$PORTAL_DIR" "openwoo-app-config"
 }
 
 # --------------------------------------------------------------------------
@@ -416,13 +426,58 @@ step_4_push_rb() {
   warn "De ApplicationSet is na ${ARGO_WAIT_SECONDS}s nog niet bijgewerkt."
   show_sync_windows
   info
-  info "De push is geland; alleen de uitrol wacht. Draai stap 5 opnieuw zodra"
+  info "De push is geland; alleen de uitrol wacht. Draai stap 6 opnieuw zodra"
   info "het venster open is."
   return 0
 }
 
 # --------------------------------------------------------------------------
-step_5_verify() {
+step_5_push_portal() {
+  banner "Stap 5 — openwoo-app-config (het portaal) naar de remote"
+
+  # BEWUST na stap 4. Het nieuwe formulier biedt registry- en repository-velden
+  # aan; die begrijpt alleen de NIEUWE ApplicationSet. Rol je het portaal eerder
+  # uit, dan kan een operator een registry zetten die stilzwijgend genegeerd
+  # wordt — het tenantbestand klopt dan wel en de site niet.
+  if ! appset_is_new; then
+    warn "De nieuwe ApplicationSet is nog niet toegepast."
+    show_sync_windows
+    info
+    fail "Portaal niet gepusht: het zou velden aanbieden die het cluster nog negeert."
+  fi
+  ok "Nieuwe ApplicationSet actief — de nieuwe velden worden begrepen"
+
+  run_verify "$PORTAL_DIR" "openwoo-app-config"
+  push_main "$PORTAL_DIR" "openwoo-app-config"
+
+  # De push start .github/workflows/image.yml: die bouwt het image, verifieert
+  # het in dezelfde job en zet daarna een `chore(deploy)`-commit met de nieuwe
+  # tag. Argo rolt op die commit uit. We wachten tot die commit verschijnt,
+  # zodat "gepusht" niet wordt verward met "draait".
+  local before after deadline
+  before="$(git -C "$PORTAL_DIR" rev-parse origin/main)"
+  deadline=$((SECONDS + ARGO_WAIT_SECONDS))
+  info "Wachten op de image-build en zijn deploy-commit (max ${ARGO_WAIT_SECONDS}s)..."
+  while ((SECONDS < deadline)); do
+    git -C "$PORTAL_DIR" fetch -q origin main 2>/dev/null || true
+    after="$(git -C "$PORTAL_DIR" rev-parse origin/main)"
+    if [[ "$after" != "$before" ]] \
+       && git -C "$PORTAL_DIR" log -1 --format='%s' origin/main | grep -q '^chore(deploy)'; then
+      ok "Image gebouwd en uitgerold: $(git -C "$PORTAL_DIR" log -1 --format='%s' origin/main)"
+      return 0
+    fi
+    printf '  build loopt nog ... \r'
+    sleep "$ARGO_POLL_SECONDS"
+  done
+
+  info
+  warn "Nog geen deploy-commit na ${ARGO_WAIT_SECONDS}s."
+  info "De push is geland; controleer de image-workflow in GitHub Actions."
+  return 0
+}
+
+# --------------------------------------------------------------------------
+step_6_verify() {
   banner "Stap 5 — harde toets op het cluster"
   FAILURES=0
 
@@ -525,7 +580,8 @@ cmd_status() {
   banner "Stand van zaken"
 
   local pair dir label
-  for pair in "${NB_DIR}:Nextcloud-base" "${RB_DIR}:react-base"; do
+  for pair in "${NB_DIR}:Nextcloud-base" "${RB_DIR}:react-base" \
+              "${PORTAL_DIR}:openwoo-app-config"; do
     dir="${pair%%:*}"
     label="${pair#*:}"
     printf '  %-16s branch=%-8s %s\n' "$label" \
@@ -573,14 +629,16 @@ main() {
     2) step_2_secret ;;
     3) step_3_push_nb ;;
     4) step_4_push_rb ;;
-    5) step_5_verify ;;
+    5) step_5_push_portal ;;
+    6) step_6_verify ;;
     rollback) cmd_rollback ;;
     all)
       step_1_preflight
       step_2_secret
       step_3_push_nb
       step_4_push_rb
-      step_5_verify
+      step_5_push_portal
+      step_6_verify
       ;;
     -h|--help) usage ;;
     *) fail "onbekende stap '${step}' — zie --help" ;;
