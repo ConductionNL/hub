@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-08-11 — certificaat-swap Epe: CAA sluit Let's Encrypt uit
+
+### Toegevoegd
+
+`scripts/swap_epe_cert.sh` — zet het Sectigo-certificaat van gemeente Epe over
+naar namespace `epe-prod` en zet de tenant op `issuer: none`.
+
+Aanleiding: `certificate/open-epe-nl-tls` bleef falen op een `invalid` order.
+Het CAA-record van `epe.nl` staat alleen digicert, certSIGN, kpn, entrust,
+sectigo en ssl.com toe — Let's Encrypt staat er niet bij en kan er dus nooit
+uitgeven. `open.epe.nl` serveerde ondertussen het fake-certificaat van de
+ingress. Het echte certificaat bestond al in de oude namespace `epe`, onder de
+naam `epe-prod-reactfront-woo-website-frontend-tls`.
+
+Vijf stappen plus `status` en `cleanup`, elk apart draaibaar en idempotent:
+preflight, secret overzetten, merge + push van Nextcloud-base, het lege
+`Certificate` opruimen, cluster-verificatie. `all` doet het geheel.
+
+De volgorde zit in de stappen zelf en is de reden dat dit een script is:
+
+- **Het secret gaat eerst**, vóór de merge. Dat mag, want cert-manager schrijft
+  alleen bij geslaagde uitgifte en CAA maakt slagen onmogelijk. Zo staat de site
+  meteen weer op een geldig cert in plaats van pas na de Argo-sync.
+- **Het `Certificate` gaat als laatste.** Stap 4 wacht tot de annotatie
+  `cert-manager.io/cluster-issuer` van de ingress verdwenen is en weigert eerder
+  te verwijderen: zolang die annotatie er staat, maakt de ingress-shim een
+  verwijderd `Certificate` binnen seconden terug.
+- Stap 3 weigert zonder secret, en merget `origin/main` binnen vóór onze
+  wijziging — anders ketst de push af op non-fast-forward.
+
+De merge lost nooit zelf een conflict op. Een conflict in een tenantbestand is
+een inhoudelijke keuze: het script breekt de merge af, geeft de werkboom terug
+zoals hij was en noemt de bestanden. Pushen vraagt bevestiging en gebruikt nooit
+een `--force`-variant.
+
+Preflight toetst niet alleen dat het bronsecret bestaat, maar ook dat de SAN
+`open.epe.nl` dekt. Een naam die klopt met een cert voor een andere host is de
+duurste fout die hier mogelijk is.
+
+De secret-kopie loopt via `jq`, dat alle annotaties, labels en ownerReferences
+weggooit. Dat is geen netheid maar de kern: zonder Argo-tracking pruunt Argo het
+secret niet (`prune: true, selfHeal: true` staat aan op `epe-prod-reactfront`),
+en zonder cert-manager-annotaties claimt cert-manager het niet. De privésleutel
+gaat alleen door de pipe, nooit naar schijf.
+
+Stap 5 is een **harde toets**, geen rapportage: zes verwachtingen, exitcode 1 als
+er één niet uitkomt. Daarnaast meldt hij de resterende geldigheidsdagen, want met
+`issuer: none` bestaat er geen `Certificate` en dus geen expiry-metriek —
+`CertificateExpiringSoon` dekt dit certificaat niet. Dat is de enige bewaking die
+er is. Het huidige certificaat verloopt **2026-09-02**.
+
 ## 2026-08-11 — uitrolscript frontend image-pin en BYO-certificaat
 
 ### Toegevoegd
