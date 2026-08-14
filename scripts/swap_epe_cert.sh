@@ -31,10 +31,20 @@
 # Stap 5 is een echte toets, geen rapportage: hij faalt met exitcode 1 als een
 # verwachting niet uitkomt.
 #
-# LET OP bij verlenging: dit certificaat verloopt 2026-09-02 en valt met
-# `issuer: none` buiten `CertificateExpiringSoon` — die alert leest een metriek
-# die cert-manager alleen voor Certificate-objecten produceert. Stap 5 meldt de
-# resterende dagen; dat is de enige bewaking die er is.
+# DIT SCRIPT IS OPGEBRUIKT. Het was de eenmalige reparatie van 2026-08-11 en
+# het kan maar één ding: een bestaand secret uit namespace `epe` kopiëren. Een
+# verse bundel van de gemeente kan het niet plaatsen — stap 2 leest het cluster,
+# niet de schijf.
+#
+# VERLENGEN GAAT ANDERS. De canonieke procedure is `certswap plan/apply k8s`,
+# beschreven in openwoo-app-config/docs/custom-domain-cert.md § Landing a
+# bring-your-own certificate. Zo is het op 2026-08-14 gegaan: het certificaat
+# loopt nu tot 2027-02-28.
+#
+# LET OP: met `issuer: none` valt dit certificaat buiten
+# `CertificateExpiringSoon` — die alert leest een metriek die cert-manager
+# alleen voor Certificate-objecten produceert. De comment in het tenantbestand
+# is de enige bewaking die er is.
 #
 # Writes: cluster (één TLS-secret in epe-prod, en het verwijderen van één
 #         Certificate daar), een merge + `git push origin main` in

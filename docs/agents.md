@@ -20,7 +20,7 @@ repo.
 | Semantische review draaien (skill `semantische-review`) | autonoom | herhaalde run op kloppende docs → 0 drift, alleen `last_reviewed`-bump | triviale drift direct fixen (docs-as-code); structurele bevindingen naar de owner via de docs-drift-routing |
 | Cockpit-settings wijzigen (`.claude/settings.json`, incl. deny-regels en repo-scope) | mens-vereist | — | dit zíjn de guardrails: een agent die ze wijzigt keurt zijn eigen kooi; agent bereidt hooguit een diff voor |
 | `CLAUDE.md` wijzigen (de sessie-instructies zélf, incl. stap 0) | mens-vereist, voorstel-eerst | tekstueel | zelfde reden als de settings: dit is de kooi, niet het werk. Alleen op expliciete opdracht van een mens, en die opdracht hoort in de CHANGELOG-regel te staan (zo ging 2026-08-03: stap 0 op verzoek van Mark) |
-| Certificaat-swap Epe (`./scripts/swap_epe_cert.sh`) | mens-vereist | secret al aanwezig / al gemerged / al gepusht → melding, geen fout | stap 5 is een harde toets op het cluster (exitcode 1 bij afwijking); stap 2 en 4 muteren het cluster en vragen bevestiging |
+| Certificaat-swap Epe (`./scripts/swap_epe_cert.sh`) | mens-vereist | secret al aanwezig / al gemerged / al gepusht → melding, geen fout | **opgebruikt**: eenmalige reparatie van 2026-08-11, kopieert alleen uit ns `epe` en kan geen verse bundel plaatsen. Verlengen gaat via `certswap`, zie `openwoo-app-config/docs/custom-domain-cert.md`. Stap 5 is een harde toets op het cluster (exitcode 1 bij afwijking); stap 2 en 4 muteren het cluster en vragen bevestiging |
 | Push | mens-vereist | — | pre-push gates draaien bij de mens |
 
 ## Gates

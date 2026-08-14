@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-08-14 — certificaat open.epe.nl verlengd met certswap
+
+Gemeente Epe leverde een verse Sectigo OV-bundel. Geplaatst in
+`epe-prod/open-epe-nl-tls` met `certswap apply k8s` — de canonieke procedure
+uit `openwoo-app-config/docs/custom-domain-cert.md`, niet met het script
+hieronder.
+
+Vooraf getoetst: keten compleet en geverifieerd tegen de trust store, SANs
+`open.epe.nl` + `www.open.epe.nl`, en de pubkey-hash van cert, CSR en
+privésleutel identiek (RSA 4096). Het oude certificaat verliep 2026-09-02; het
+nieuwe loopt tot **2027-02-28**.
+
+`certswap --ingress woo-website` ruimde en passant het achtergebleven
+`Certificate`-object op (stond nog op `letsencrypt-prod`, reden
+`IncorrectIssuer`) en verving het secret in place. Geverifieerd op het cluster:
+`open.epe.nl` serveert `notAfter=Feb 28 23:59:59 2027 GMT`, geen `Certificate`
+meer, Argo `epe-prod-reactfront` `Synced/Healthy`.
+
+### Bevinding — privésleutel in een annotatie
+
+Het oude secret droeg `kubectl.kubernetes.io/last-applied-configuration` met
+daarin een platte base64-kopie van `tls.key`. Gevolg van de `kubectl apply` in
+`scripts/swap_epe_cert.sh` stap 2. De `replace` van certswap heeft de annotatie
+weggeschreven, dus dit secret is schoon. **Niet onderzocht** of andere secrets
+die langs dezelfde werkwijze zijn aangemaakt hetzelfde probleem hebben.
+
+### Gewijzigd
+
+- `scripts/swap_epe_cert.sh` — header: het script is opgebruikt en is geen
+  verlengpad; doorverwezen naar `custom-domain-cert.md`. Alleen commentaar.
+- `docs/agents.md` — zelfde markering in het operatie-cataloog.
+- Buiten deze repo: `Nextcloud-base` tenantbestand (vervaldatum-comment, de
+  enige bewaking die dit cert heeft) en `openwoo-app-config/docs/custom-domain-cert.md`
+  (verlengsectie: de genegeerde `--chain`-vlag, `--context`/`--ingress`/`--evidence-dir`,
+  en waarom `kubectl create secret tls` geen verlengpad is).
+
 ## 2026-08-11 — certificaat-swap Epe: CAA sluit Let's Encrypt uit
 
 ### Toegevoegd
