@@ -25,6 +25,6 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX \
       GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES \
       GIT_COMMON_DIR GIT_INTERNAL_GETTEXT_SH_SCHEME 2>/dev/null || true
 uv run --with pytest python -m pytest tests/ -q
-shellcheck scripts/*.sh
+shellcheck scripts/*.sh .claude/hooks/*.sh
 python3 -c "import json; json.load(open('.mcp.json')); json.load(open('.claude/settings.json'))"
 echo "verify: OK (tests + lint + config)"

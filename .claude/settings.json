@@ -36,5 +36,18 @@
       "Bash(helm rollback:*)",
       "Bash(sops:*)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mcp-first.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

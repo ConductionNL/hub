@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-21 — stap 0 wordt ingespoten door een repo-hook
+
+Op verzoek van Mark. Aanleiding: in een sessie van een collega greep de agent
+niet als eerste naar MCP `conduction-docs`, terwijl de server bij hem wél
+beschikbaar was. De oorzaak was dus niet de opzet maar de handhaving —
+`CLAUDE.md` draagt stap 0 als proza, en proza kan wegzakken in een lange
+sessie of bij een andere agent.
+
+Toegevoegd: `.claude/hooks/mcp-first.sh`, aangeroepen als
+`UserPromptSubmit`-hook via `$CLAUDE_PROJECT_DIR` in `.claude/settings.json`.
+Het script zet stap 0 (302 bytes: `search_docs` eerst, herkomst én `origin`
+citeren, stille MCP is een bevinding) bij elke prompt opnieuw in context. Het
+reist mee met de clone, dus het werkt ook voor wie de README nooit opende — de
+reden om dit als hook te doen en niet als README-sectie.
+
+Bewust triviaal gehouden: één heredoc, geen netwerk, geen state, geen `jq`.
+Dit script draait op de machine van iedereen die de repo kloont en moet in één
+blik te auditeren zijn.
+
+Overwogen en niet gedaan: een `activate.sh` die de MCP opzet (lost oorzaak 1
+op, die zich niet voordeed — de README-viertrapper dekt de opzet al), en een
+`PreToolUse`-gate die grep blokkeert tot `search_docs` liep (handhaaft harder,
+maar geeft vals alarm zodra iemand legitiem in de eigen repo leest).
+
+### Bevinding — de guardrail blokkeert agent-geschreven repo-hooks
+
+`workstation-security/common/claude-pre-tool-use.sh` weigert elke schrijfactie
+op een pad met `.claude/hooks/`, ongeacht of dat `~/.claude/hooks/` is of dat
+van een repo. De agent heeft script en patch dus aangeleverd; installeren en
+`git apply` deed Mark met de hand. Dat is het gedrag dat je wil — een agent die
+zijn eigen hek zet, is geen hek — en het is hier voor het eerst zichtbaar
+geworden op een projecthook in plaats van op de persoonlijke hooks.
+
+### Gewijzigd
+
+- `.claude/hooks/mcp-first.sh` — nieuw; injecteert stap 0 per prompt.
+- `.claude/settings.json` — `hooks.UserPromptSubmit` toegevoegd (timeout 5s).
+- `scripts/verify.sh` — `shellcheck` dekt nu ook `.claude/hooks/*.sh`, zodat de
+  nieuwe hook onder dezelfde lintgate valt als `scripts/`.
+- `docs/agents.md` — hook opgenomen in het cataloog; `last_reviewed` bijgewerkt.
+
 ## 2026-08-14 — certificaat open.epe.nl verlengd met certswap
 
 Gemeente Epe leverde een verse Sectigo OV-bundel. Geplaatst in

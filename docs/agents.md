@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-08-10
+last_reviewed: 2026-08-21
 owner: info@conduction.nl
 ---
 
@@ -19,6 +19,7 @@ repo.
 | `docs_mcp`-code wijzigen (server, search, content) | autonoom | tests zijn netwerkvrij (file://-fixtures) en isoleren de git-omgeving (`c.clean_git_env()`, zie hieronder); gelijke code → gelijke uitkomst | `./scripts/verify.sh` groen (pytest + shellcheck + config-parse); docs mee in dezelfde wijziging |
 | Semantische review draaien (skill `semantische-review`) | autonoom | herhaalde run op kloppende docs → 0 drift, alleen `last_reviewed`-bump | triviale drift direct fixen (docs-as-code); structurele bevindingen naar de owner via de docs-drift-routing |
 | Cockpit-settings wijzigen (`.claude/settings.json`, incl. deny-regels en repo-scope) | mens-vereist | — | dit zíjn de guardrails: een agent die ze wijzigt keurt zijn eigen kooi; agent bereidt hooguit een diff voor |
+| Repo-hooks wijzigen (`.claude/hooks/`) | mens-vereist | tekstueel | zelfde reden als de settings, en technisch afgedwongen: `claude-pre-tool-use.sh` weigert elke schrijfactie op een pad met `.claude/hooks/`. Agent levert script + patch aan, de mens installeert |
 | `CLAUDE.md` wijzigen (de sessie-instructies zélf, incl. stap 0) | mens-vereist, voorstel-eerst | tekstueel | zelfde reden als de settings: dit is de kooi, niet het werk. Alleen op expliciete opdracht van een mens, en die opdracht hoort in de CHANGELOG-regel te staan (zo ging 2026-08-03: stap 0 op verzoek van Mark) |
 | Certificaat-swap Epe (`./scripts/swap_epe_cert.sh`) | mens-vereist | secret al aanwezig / al gemerged / al gepusht → melding, geen fout | **opgebruikt**: eenmalige reparatie van 2026-08-11, kopieert alleen uit ns `epe` en kan geen verse bundel plaatsen. Verlengen gaat via `certswap`, zie `openwoo-app-config/docs/custom-domain-cert.md`. Stap 5 is een harde toets op het cluster (exitcode 1 bij afwijking); stap 2 en 4 muteren het cluster en vragen bevestiging |
 | Push | mens-vereist | — | pre-push gates draaien bij de mens |
@@ -38,6 +39,13 @@ vrijstelling (`Docs-not-needed`-trailer) en verificatie: techbook
 - Handboek (MCP `conduction-docs`) boven modelkennis — deze repo ís de
   server; bij twijfel over gedrag: lees `docs_mcp/` en de tests, niet
   het geheugen.
+- Stap 0 staat sinds 2026-08-21 niet alleen in `CLAUDE.md` maar wordt bij
+  elke prompt ingespoten door `.claude/hooks/mcp-first.sh`
+  (`UserPromptSubmit`). Reden: proza kan wegzakken in een lange sessie —
+  dat gebeurde in een sessie van een collega terwijl de MCP wél
+  beschikbaar was. De hook reist mee met de clone; wie hem uit
+  `.claude/settings.json` haalt, haalt de handhaving weg en houdt alleen
+  de intentie over.
 - GET-check-first: lees de huidige staat (bestaat de checkout, wat
   zegt verify) vóór je wijzigt; een herhaalde run op een correcte
   staat wijzigt niets.
