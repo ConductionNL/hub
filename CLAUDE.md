@@ -43,6 +43,7 @@ hub-programma; kom je die nodig, vraag het eerst.
 | de regels/het programma | `../techbook` (openspec, contract, audit) |
 | repos klonen/bijwerken | `./scripts/clone_all.sh` (idempotent, juiste remotes) |
 | een werkplek inrichten | `./scripts/onboard.sh` (rapporteert; `--apply` voert uit) |
+| idem, met een venster | `./scripts/onboard_gui.py` (vult voor, roept hetzelfde script) |
 
 ## Agent-guardrails (gelden hier extra streng: multi-repo-sessies)
 

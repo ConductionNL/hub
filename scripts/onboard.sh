@@ -92,6 +92,7 @@ readonly PROFILE_MARKER="# >>> conduction onboarding >>>"
 APPLY=false
 WRITE_PROFILE=false
 ONLY=""
+EMK_NAME="${EMK_NAME:-}"
 failures=0
 
 # --- uitvoer ---------------------------------------------------------------
@@ -136,9 +137,19 @@ parse_args() {
     case "$1" in
       --apply) APPLY=true; shift ;;
       --write-profile) WRITE_PROFILE=true; shift ;;
+      --emk-name)
+        [[ -n "${2:-}" ]] || die "--emk-name vraagt een voornaam of mailadres"
+        EMK_NAME="$2"; shift 2 ;;
       --only)
         [[ -n "${2:-}" ]] || die "--only vraagt een stap: prereqs, emk, fleet, plugins, settings, kubeconfig, verify"
         ONLY="$2"; shift 2 ;;
+      --print-emk-path)
+        # Eén bron van waarheid voor de naamconventie: de GUI vraagt het pad
+        # hier op in plaats van het patroon te herhalen.
+        [[ -n "${2:-}" ]] || die "--print-emk-path vraagt een voornaam of mailadres"
+        emk_path_for_name "$2"
+        echo
+        exit 0 ;;
       --self-test) shift; self_test; exit $? ;;
       --version) echo "onboard.sh ${ONBOARD_VERSION}"; exit 0 ;;
       -h | --help) sed -n '4,80p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -180,6 +191,28 @@ check_prereqs() {
 
 # --- stap 2: het EMK service-account ---------------------------------------
 
+# De naamconventie van het service-account, op vier plekken in toolchain
+# bevestigd (`.gitignore`, drie `get_config_*.sh`, `docs/daily-login.md`):
+#
+#   ~/.kube/emk-sa-<project>_<voornaam>-conduction.yml
+#
+# `<project>` is de Gardener-namespace zonder `garden-`. `<voornaam>` is de
+# voornaam in kleine letters — af te leiden uit het mailadres (het deel vóór de
+# @), niet uit de GitHub-accountnaam.
+#
+# Deze functie bestaat zodat de conventie op één plek staat. De GUI geeft alleen
+# een naam door; hij hoeft het patroon niet te kennen.
+emk_path_for_name() {
+  local name="$1" dir="${2:-${KUBE_DIR}}" ns="${3:-${GARDENER_NAMESPACE}}"
+  local project="${ns#garden-}"
+  # Kleine letters, en alleen het deel vóór een @ of een punt: `Thijn@…` en
+  # `thijn.jansen` leveren beide `thijn`.
+  name="$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]')"
+  name="${name%%@*}"
+  name="${name%%.*}"
+  printf '%s/emk-sa-%s_%s-conduction.yml' "${dir}" "${project}" "${name}"
+}
+
 # Zoekt het service-account-kubeconfig. Eén treffer is de normale situatie:
 # per persoon is er één. Meerdere treffers vragen een keuze — dan raden is
 # precies hoe je met het account van een ex-collega gaat werken.
@@ -209,6 +242,23 @@ EMK_FILE=""
 check_emk() {
   want emk || return 0
   step "EMK service-account"
+
+  # Een opgegeven naam wint van de glob: bij meerdere bestanden in ~/.kube is de
+  # naam het enige wat het juiste account aanwijst.
+  local expected=""
+  if [[ -n "${EMK_NAME}" ]]; then
+    expected="$(emk_path_for_name "${EMK_NAME}")"
+    if [[ -r "${expected}" ]]; then
+      EMK_FILE="${expected}"
+      ok "gevonden via naam '${EMK_NAME}': $(basename "${EMK_FILE}")"
+      return 0
+    fi
+    fail "verwacht bestand bestaat niet: ${expected}"
+    echo "     Vraag dit bestand aan bij Fuga Cloud en zet het op precies dit pad." >&2
+    echo "     Zie claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
+    return 1
+  fi
+
   local found rc=0
   found="$(find_emk "${KUBE_DIR}" "${EMK_KUBECONFIG:-}")" || rc=$?
   if [[ -n "${found}" ]]; then
@@ -217,11 +267,12 @@ check_emk() {
     return 0
   fi
   if ((rc > 1)); then
-    fail "meer dan één emk-sa-bestand in ${KUBE_DIR} — zet EMK_KUBECONFIG naar het juiste"
+    fail "meer dan één emk-sa-bestand in ${KUBE_DIR} — geef --emk-name <voornaam> of zet EMK_KUBECONFIG"
   else
     fail "geen emk-sa-*.yml in ${KUBE_DIR}"
     echo "     Dit is de enige stap die je met de hand moet regelen: vraag een EMK" >&2
     echo "     service-account-kubeconfig aan bij Fuga Cloud en zet het in ${KUBE_DIR}." >&2
+    echo "     Met --emk-name <voornaam> noemt dit script het exacte pad dat het verwacht." >&2
     echo "     Zie claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
   fi
   return 1
@@ -472,6 +523,18 @@ self_test() {
   : > "${tmp}/expliciet.yml"
   got="$(find_emk "${tmp}/twee" "${tmp}/expliciet.yml" || true)"
   check "expliciet pad wint" "${got}" "${tmp}/expliciet.yml"
+
+  # De naamconventie: vier vormen die allemaal dezelfde voornaam moeten geven.
+  check "voornaam" \
+    "$(emk_path_for_name thijn /k garden-wh2mnkj)" "/k/emk-sa-wh2mnkj_thijn-conduction.yml"
+  check "mailadres" \
+    "$(emk_path_for_name thijn@conduction.nl /k garden-wh2mnkj)" "/k/emk-sa-wh2mnkj_thijn-conduction.yml"
+  check "hoofdletters" \
+    "$(emk_path_for_name Thijn /k garden-wh2mnkj)" "/k/emk-sa-wh2mnkj_thijn-conduction.yml"
+  check "punt in het lokale deel" \
+    "$(emk_path_for_name thijn.jansen@conduction.nl /k garden-wh2mnkj)" "/k/emk-sa-wh2mnkj_thijn-conduction.yml"
+  check "andere namespace" \
+    "$(emk_path_for_name mark /k garden-anders)" "/k/emk-sa-anders_mark-conduction.yml"
 
   # would(): zonder --apply mag geen enkele muterende stap doorlopen.
   APPLY=false

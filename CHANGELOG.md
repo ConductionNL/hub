@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-08-24 (3) — GUI voor de onboarding, en de naamconventie vastgelegd
+
+`scripts/onboard_gui.py`: een venster met voorgevulde velden dat `onboard.sh`
+aanroept. Bewust een dun laagje — twee implementaties van dezelfde onboarding
+gaan uiteenlopen en dan is onduidelijk welke de waarheid is. De GUI heeft geen
+eigen staat en wijzigt niets zelf.
+
+Wat het venster toevoegt boven het script: je typt je voornaam en ziet meteen
+het **volledige pad** van het EMK-bestand plus of het er staat. Dat is de enige
+informatie die een nieuwe beheerder niet kan weten, want het gaat om een bestand
+dat hij nog moet aanvragen.
+
+**De naamconventie is nu vastgelegd in code.** Op vier plekken in toolchain
+bevestigd (`.gitignore`, drie `get_config_*.sh`, `docs/daily-login.md`):
+
+    ~/.kube/emk-sa-<project>_<voornaam>-conduction.yml
+
+`<project>` is de Gardener-namespace zonder `garden-`. Nieuw:
+`onboard.sh --emk-name <naam|mailadres>` bouwt dat pad, en
+`--print-emk-path <naam>` print het. De GUI vraagt het daar op in plaats van
+het patroon te herhalen, dus de conventie staat op één plek. Een opgegeven naam
+wint van de glob — bij meerdere bestanden in `~/.kube` is de naam het enige wat
+het juiste account aanwijst.
+
+Vijf fixtures dekken de afleiding: voornaam, mailadres, hoofdletters, een punt
+in het lokale deel (`thijn.jansen@…` → `thijn`) en een andere namespace.
+
+**Voorvullen doet hij alleen bij een zakelijk adres.** De eerste versie leidde
+de naam af uit het git-mailadres en gaf op de bouwmachine `mwesterweel` terwijl
+het bestand `mark` heet — een privéadres levert geen voornaam, en een
+GitHub-accountnaam ook niet. Een zelfverzekerd verkeerde voorvulling is erger
+dan een leeg veld: die leidt tot een aanvraag bij Fuga voor een bestand dat
+niemand kan gebruiken. Nu vult hij alleen voor bij `@conduction.nl` en blijft
+het veld anders leeg, met de hint dat het om de voornaam gaat.
+
+Ontbreekt `python3-tkinter`, dan meldt het script dat en geeft het de twee
+commando's om het zonder venster te doen. De onboarding hoort niet te stranden
+op een GUI-pakket.
+
+`--self-test` (7 fixtures) toetst wat zonder beeldscherm te toetsen is: dat de
+voorgevulde waarden niet uiteenlopen met de defaults van `onboard.sh` (drift is
+hier het echte risico — de gebruiker zou stil een andere configuratie krijgen
+dan het script kiest), dat 'Controleren' nooit `--apply` meestuurt, en dat de
+naamafleiding uit het script komt.
+
 ## 2026-08-24 (2) — onboarding is één script
 
 `scripts/onboard.sh`: van een verse machine naar een werkende sessie. Kloont de
