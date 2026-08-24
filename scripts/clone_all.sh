@@ -35,6 +35,7 @@ readonly REPOS=(
   techbook handbook
   Nextcloud-base react-base talos cluster-infra cluster-config
   monitoring KeyCloak openwoo-app-config
+  claude-plugins
 )
 
 # De lokale mapnaam is niet altijd de repo-naam op de forge. Alleen de

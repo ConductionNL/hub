@@ -16,6 +16,7 @@ repo.
 | Operatie | Autonomie | Idempotentie | Verificatie |
 |---|---|---|---|
 | Zusterrepos klonen/bijwerken (`./scripts/clone_all.sh`) | autonoom | bestaande checkout → alleen fetch (geen merge/reset); ontbrekend → clone | script-output per repo; remotes komen uit het script, niet uit de sessie |
+| Werkplek inrichten (`./scripts/onboard.sh`) | mens-vereist | zonder `--apply` wijzigt hij niets; met `--apply` kloont hij niets opnieuw, voegt geen dubbele deny-regels toe en herschrijft het profielblok niet — kubeconfigs wél verse, die verlopen na 24u | `--self-test` (9 fixtures, netwerkvrij) en daarna een run zonder `--apply`: die laat per stap zien wat er zou gebeuren. Mens-vereist omdat hij `~/.claude/settings.json`, `~/.kube/config` en desgevraagd je shellprofiel raakt |
 | `docs_mcp`-code wijzigen (server, search, content) | autonoom | tests zijn netwerkvrij (file://-fixtures) en isoleren de git-omgeving (`c.clean_git_env()`, zie hieronder); gelijke code → gelijke uitkomst | `./scripts/verify.sh` groen (pytest + shellcheck + config-parse); docs mee in dezelfde wijziging |
 | Semantische review draaien (skill `semantische-review`) | autonoom | herhaalde run op kloppende docs → 0 drift, alleen `last_reviewed`-bump | triviale drift direct fixen (docs-as-code); structurele bevindingen naar de owner via de docs-drift-routing |
 | Cockpit-settings wijzigen (`.claude/settings.json`, incl. deny-regels en repo-scope) | mens-vereist | — | dit zíjn de guardrails: een agent die ze wijzigt keurt zijn eigen kooi; agent bereidt hooguit een diff voor |

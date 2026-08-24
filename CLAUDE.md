@@ -42,6 +42,7 @@ hub-programma; kom je die nodig, vraag het eerst.
 | aan een component werken | `../<repo>` — lees éérst `docs/agents.md` dáár (het operatie-cataloog van die component geldt, niet dit bestand) |
 | de regels/het programma | `../techbook` (openspec, contract, audit) |
 | repos klonen/bijwerken | `./scripts/clone_all.sh` (idempotent, juiste remotes) |
+| een werkplek inrichten | `./scripts/onboard.sh` (rapporteert; `--apply` voert uit) |
 
 ## Agent-guardrails (gelden hier extra streng: multi-repo-sessies)
 

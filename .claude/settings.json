@@ -10,7 +10,8 @@
       "../cluster-config",
       "../monitoring",
       "../KeyCloak",
-      "../openwoo-app-config"
+      "../openwoo-app-config",
+      "../claude-plugins"
     ],
     "deny": [
       "Bash(kubectl apply:*)",

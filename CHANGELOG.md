@@ -1,5 +1,54 @@
 # Changelog
 
+## 2026-08-24 (2) — onboarding is één script
+
+`scripts/onboard.sh`: van een verse machine naar een werkende sessie. Kloont de
+fleet, installeert beide agent-plugins, zet de deny-laag en de CLAUDE.md-kern,
+genereert een kubeconfig per cluster en zet het standaardcluster op
+`~/.kube/config`.
+
+Aanleiding: de overdracht valt in een periode waarin er niemand is om de
+onboarding mee te testen. Een instructie in een document is dan niet genoeg —
+wie vastloopt kan het niet navragen. Een script dat de stappen zelf doet en per
+stap zegt wat er misging, kan dat wel.
+
+**De enige handmatige voorwaarde is het EMK service-account in `~/.kube/`.** Dat
+is persoonsgebonden en wordt met de hand bij Fuga Cloud aangevraagd. Het script
+zoekt het met een glob in plaats van een naam te verwachten, en stopt als er nul
+of meer dan één treffer is. Dat laatste is geen theoretisch geval: op de machine
+van de huidige beheerder staan er meerdere, en dan zou raden het account van een
+ander pakken.
+
+**De Gardener-call staat hier en niet in toolchain.** Reden: `get_config.sh`
+daar heeft op regel 13 een onvoorwaardelijke toewijzing naar het
+service-account-bestand van één persoon, zonder `:-`-fallback. `KUBECONFIG` in
+de omgeving zetten helpt dus niet, en de eerste handeling van een nieuwe
+beheerder faalt op een bestand dat niet van hem is. Twee verbeteringen
+meegenomen: het pad wordt gevonden in plaats van geraden, en het doelbestand
+wordt pas overschreven als de API-aanroep is geslaagd — die variant truncate het
+vóór de aanroep, dus een mislukte login liet je zonder je oude kubeconfig achter.
+
+Ontwerp: zonder `--apply` wijzigt het script niets en print het per stap wat het
+zou doen. `--only <stap>` voor één stap, `--write-profile` voor de env-vars,
+`--self-test` voor de negen netwerkvrije fixtures. `~/.kube/config` wordt vóór
+overschrijven geback-upt. Het script print nooit de inhoud van een kubeconfig.
+
+Die zelftest ving twee eigen bugs vóór de eerste echte run: `find` met
+`-name a -o -name b -print0` bindt de `-print0` alleen aan de laatste tak, dus
+`.yml`-treffers verdwenen stil; en nul treffers gaf `return 0`, dus "niets
+gevonden" was een succesvolle uitkomst.
+
+`clone_all.sh` kloont nu ook `claude-plugins` — zonder die repo kan het script
+de deny-laag niet installeren. `.claude/settings.json` heeft
+`../claude-plugins` in `additionalDirectories`, want die twee lijsten moeten
+gelijk blijven.
+
+Bevinding uit de eerste rapportage-run, niet gerepareerd: **22 van de 81
+deny-regels stonden niet in de user-settings.** De hele cluster-laag
+(`kubectl apply/delete/patch/exec`, `argocd app`, `helm`, `sops`) zat alleen in
+hub's project-settings, dus sessies die buiten deze repo starten hadden die kooi
+niet. `onboard.sh --apply` zet ze wel.
+
 ## 2026-08-24 — handbook en techbook waren onzichtbaar voor de MCP
 
 `list_components` gaf negen componenten; `handbook` en `techbook` zaten er niet
