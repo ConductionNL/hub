@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-24 (5) — rotatie en portaaltoegang staan erin
+
+Twee meldingen erbij, op de twee momenten dat iemand ze nodig heeft.
+
+Ontbreekt het EMK-bestand, dan zegt het script er nu ook bij dat je zonder
+portaaltoegang niet verder komt en dat daar geen omweg voor is. Dat is de enige
+stap in deze hele overdracht die van een mens met rechten afhangt in plaats van
+van een repo.
+
+Faalt het genereren van een kubeconfig terwijl het bestand er wél is, dan wijst
+het script op de meest waarschijnlijke oorzaak: het service-account verloopt na
+drie maanden en er waarschuwt niets. De timer draait, de Gardener-aanroep
+mislukt, en de melding zegt niet waarom. Drie maanden is lang genoeg om vergeten
+te zijn dat het bestaat, dus die diagnose hoort in de foutmelding en niet alleen
+in een runbook.
+
+De rotatie zelf is één stap: verse config downloaden en het bestand
+overschrijven. Geen intrekken, geen verlengen.
+
 ## 2026-08-24 (4) — het script wijst nu naar het CYSO-portaal
 
 `onboard.sh` en de GUI melden bij een ontbrekend EMK-bestand niet alleen wélk

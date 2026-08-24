@@ -288,7 +288,20 @@ emk_where_to_get() {
   echo "       2. ga naar Service accounts" >&2
   echo "       3. haal daar een EMK service-account op" >&2
   echo "       4. zet het bestand op het pad hierboven" >&2
+  echo "     Kom je niet in het portaal, dan moet iemand met rechten je eerst" >&2
+  echo "     toevoegen — daar is geen omweg voor." >&2
   echo "     Achtergrond: claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
+}
+
+# Wordt getoond als het bestand er wél is maar het cluster onbereikbaar blijft.
+# Het service-account verloopt na drie maanden en niets waarschuwt daarvoor: de
+# timer draait, de Gardener-aanroep mislukt, en de melding zegt niet waarom.
+# Drie maanden is lang genoeg om vergeten te zijn dat dit bestaat.
+emk_maybe_expired() {
+  echo "     Verloopt na drie maanden, en er waarschuwt niets. Haal een verse" >&2
+  echo "     config op ${CYSO_PORTAL} (Service accounts) en overschrijf het" >&2
+  echo "     bestand — dat kost een minuut en sluit de meest waarschijnlijke" >&2
+  echo "     oorzaak uit." >&2
 }
 
 # --- stap 3: de fleet ------------------------------------------------------
@@ -432,7 +445,8 @@ setup_kubeconfig() {
     if generate_kubeconfig "${shoot}" "${target}"; then
       ok "${shoot} → $(basename "${target}")"
     else
-      fail "${shoot}: genereren faalde (service-account geldig? cluster bestaat?)"
+      fail "${shoot}: genereren faalde"
+      emk_maybe_expired
     fi
   done
 
