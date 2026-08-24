@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-08-24 — handbook en techbook waren onzichtbaar voor de MCP
+
+`list_components` gaf negen componenten; `handbook` en `techbook` zaten er niet
+bij. Oorzaak: de componentlijst is `repos:` uit `handbook/mkdocs.yml` plus
+`docs_mcp/internal_components.yaml`, en het handboek importeert zichzelf niet.
+
+Het gevolg was scherper dan het klinkt. `handbook/docs/org/agents.md` — de
+normatieve pagina "Werken met agents", waar alle tien repo-catalogen naar
+verwijzen met "per het handboek-formaat" — was onbereikbaar via de MCP. Een
+agent die stap 0 correct volgde kon de standaard waaraan hij zich moet houden
+niet lezen, en viel terug op modelkennis precies daar waar dat het meest
+misgaat. Hetzelfde gold voor de openspec-spec `agent-guardrails` in techbook.
+
+Beide zijn toegevoegd aan `internal_components.yaml`. Omdat ze **publiek** zijn
+op GitHub kon dat niet zonder codewijziging: die lijst markeerde alles als
+`internal`, en dan zou elk antwoord beweren dat hun `source`-URL niet open te
+klikken is. `_components_from_repos()` accepteert nu een optionele
+`publication: public|internal` per entry, met de lijst-default als terugval. Een
+onbekende waarde is een harde `ValueError` en geen stille terugval op
+`internal` — een typo zou anders een publieke pagina als niet-klikbaar melden.
+
+Geverifieerd: `fetch_import_list()` geeft elf componenten met handbook en
+techbook als `public`; een zoekopdracht op de nieuwe handboeksectie geeft
+`handbook org/agents.md` als eerste treffer, met in `origin` de waarschuwing dat
+de werkkopie op een WIP-branch staat terwijl de importlijst `main` verwacht.
+
+Drie tests erbij (override naar public, expliciet internal, onbekende waarde is
+een fout) en `test_meegeleverde_lijst_dekt_de_private_repos` is bijgewerkt naar
+de nieuwe samenstelling — die assertte precies de oude toestand. 36 tests groen.
+
+`docs/gebruik.md` § *Publiek versus grondwaarheid* bijgewerkt, met een subsectie
+over waarom niet elke aanvulling privé is. `last_reviewed` naar 2026-08-24.
+
 ## 2026-08-21 — stap 0 wordt ingespoten door een repo-hook
 
 Op verzoek van Mark. Aanleiding: in een sessie van een collega greep de agent

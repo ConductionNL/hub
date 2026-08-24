@@ -28,3 +28,18 @@ repos:
   # login; stond al buiten de publieke site (handbook/mkdocs.yml).
   - section: KeyCloak
     import_url: 'https://github.com/ConductionNL/KeyCloak?branch=main&docs_dir=docs/*'
+  # Publiek op GitHub, maar staat niet in de publieke importlijst: het
+  # handboek is de site zélf en importeert zichzelf niet. Gevolg tot
+  # 2026-08-24: `org/agents.md` — de normatieve pagina "Werken met agents",
+  # waar alle tien repo-catalogen naar verwijzen — was onbereikbaar via de
+  # MCP. Een agent die stap 0 correct volgde kon de standaard waaraan hij
+  # zich moet houden niet lezen. `publication: public` omdat de source-URL
+  # wél open te klikken is.
+  - section: handbook
+    publication: public
+    import_url: 'https://github.com/ConductionNL/handbook?branch=main&docs_dir=docs/*'
+  # Idem: publiek, en normatief voor de hele vloot (openspec-specs,
+  # conventies, docs-touched, hooks). Stond in geen van beide lijsten.
+  - section: techbook
+    publication: public
+    import_url: 'https://github.com/ConductionNL/techbook?branch=main&docs_dir=docs/*'

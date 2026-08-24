@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-24
 owner: info@conduction.nl
 ---
 
@@ -57,8 +57,9 @@ uitsluitend van de remote te lezen.
 ## Publiek versus grondwaarheid: twee lijsten
 
 De publieke site publiceert wat in `repos:` van `handbook/mkdocs.yml`
-staat. De MCP ziet dáárnaast de private componenten uit
-`docs_mcp/internal_components.yaml` — nu `cluster-config` en `KeyCloak`.
+staat. De MCP ziet dáárnaast de componenten uit
+`docs_mcp/internal_components.yaml` — nu `cluster-config`, `KeyCloak`,
+`handbook` en `techbook`.
 
 Waarom gescheiden: tot 2026-08-03 was de importlijst van het handboek de
 énige bron voor welke componenten bestonden. Een private repo uit de
@@ -71,6 +72,26 @@ doet dat per component. Citeer je een `internal`-pagina naar buiten, dan
 kan de ontvanger de `source`-URL niet openen — dat moet zichtbaar zijn,
 anders lopen publiek en grondwaarheid stil uit elkaar. Staat een component
 in beide lijsten, dan wint de publieke.
+
+### Niet elke aanvulling is privé (sinds 2026-08-24)
+
+De aanvullingslijst heet "internal" naar zijn default, niet naar zijn
+inhoud. Een entry mag die default overrulen met `publication: public`. Dat
+is nodig voor repo's die publiek zijn maar zichzelf niet importeren:
+`handbook` is de site zélf, en `techbook` is normatief voor de vloot.
+Beide staan publiek op GitHub en stonden in geen van beide lijsten.
+
+Het gevolg was scherper dan het klinkt. `handbook/docs/org/agents.md` — de
+pagina "Werken met agents", waar alle tien repo-catalogen naar verwijzen
+met "per het handboek-formaat" — was **onbereikbaar via de MCP**. Een agent
+die stap 0 correct volgde kon de standaard waaraan hij zich moet houden dus
+niet lezen, en viel terug op modelkennis precies daar waar dat het meest
+misgaat. Hetzelfde gold voor de openspec-spec `agent-guardrails` in
+techbook.
+
+Een onbekende waarde in `publication:` is een harde fout en geen stille
+terugval op `internal`: een typo zou een publieke pagina onterecht als
+niet-klikbaar melden.
 
 Zet `DOCS_MCP_INTERNAL_COMPONENTS=""` om de aanvulling uit te schakelen;
 dan ziet de MCP precies wat het portaal publiceert.
@@ -119,7 +140,7 @@ control met de pre-push gates als detectie.
   credential-bestand in de cache (getest).
 - **Eén waarheid**: de importlijst wordt live uit het handboek gelezen;
   er is geen tweede, eigen curatielaag.
-- **Pinned + getest**: dependencies vastgepind; 12 unit tests inclusief
+- **Pinned + getest**: dependencies vastgepind; 36 unit tests inclusief
   de traversal- en token-lek-scenario's.
 
 Of user-breed, buiten elke repo:

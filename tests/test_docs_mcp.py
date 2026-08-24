@@ -162,12 +162,49 @@ class TestInternalList:
         monkeypatch.setenv("DOCS_MCP_INTERNAL_COMPONENTS", str(f))
         assert [x.name for x in c.fetch_import_list()] == ["demo"]
 
-    def test_meegeleverde_lijst_dekt_de_private_repos(self):
-        """De echte internal_components.yaml, niet een fixture: de twee
-        private repos moeten erin staan, anders zijn ze onzichtbaar."""
-        comps = c.parse_internal_list(c.DEFAULT_INTERNAL_LIST.read_text())
-        assert {x.name for x in comps} == {"cluster-config", "KeyCloak"}
-        assert all(x.internal for x in comps)
+    def test_publication_override_maakt_publiek(self):
+        """Een entry mag de lijst-default overrulen. Nodig voor repo's die
+        publiek zijn maar zichzelf niet importeren."""
+        comps = c.parse_internal_list(
+            INTERNAL.replace("  - section: geheim",
+                             "  - section: geheim\n    publication: public"))
+        assert [(x.name, x.internal) for x in comps] == [("geheim", False)]
+
+    def test_publication_internal_is_expliciet_toegestaan(self):
+        comps = c.parse_internal_list(
+            INTERNAL.replace("  - section: geheim",
+                             "  - section: geheim\n    publication: internal"))
+        assert [(x.name, x.internal) for x in comps] == [("geheim", True)]
+
+    def test_onbekende_publication_is_een_fout(self):
+        """Een typo mag niet stil als 'internal' doorgaan: dan zou een
+        publieke pagina onterecht als niet-klikbaar gemeld worden."""
+        import pytest
+
+        with pytest.raises(ValueError, match="onbekende publication"):
+            c.parse_internal_list(
+                INTERNAL.replace("  - section: geheim",
+                                 "  - section: geheim\n    publication: publiek"))
+
+    def test_meegeleverde_lijst_dekt_de_niet_geimporteerde_repos(self):
+        """De echte internal_components.yaml, niet een fixture.
+
+        Twee soorten staan erin. De private repos, die niet op de publieke
+        site horen. En sinds 2026-08-24 `handbook` en `techbook`: publiek op
+        GitHub, maar ze staan niet in de publieke importlijst omdat het
+        handboek zichzelf niet importeert. Daardoor was de normatieve pagina
+        `org/agents.md` onbereikbaar via de MCP, terwijl alle repo-catalogen
+        ernaar verwijzen.
+        """
+        comps = {x.name: x for x in
+                 c.parse_internal_list(c.DEFAULT_INTERNAL_LIST.read_text())}
+        assert set(comps) == {"cluster-config", "KeyCloak",
+                              "handbook", "techbook"}
+        assert comps["cluster-config"].internal
+        assert comps["KeyCloak"].internal
+        # Publiek: hun source-URL is wél open te klikken.
+        assert not comps["handbook"].internal
+        assert not comps["techbook"].internal
 
     def test_provenance_meldt_publication(self):
         """Een agent moet in het antwoord zien of `source` publiek is."""

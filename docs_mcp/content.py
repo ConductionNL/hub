@@ -128,19 +128,33 @@ class Page:
 
 
 def _components_from_repos(repos: list, *, internal: bool) -> list[Component]:
-    """Zet een `repos:`-lijst (mkdocs-multirepo-vorm) om naar Components."""
+    """Zet een `repos:`-lijst (mkdocs-multirepo-vorm) om naar Components.
+
+    `internal` is de default voor deze lijst. Een entry mag hem overrulen met
+    `publication: public|internal`. Dat is nodig voor repo's die publiek zijn
+    maar zichzelf niet importeren: `handbook` is de site en `techbook` is
+    normatief, beide publiek op GitHub, en geen van beide staat in de
+    publieke importlijst. Zonder override zouden ze als `internal` gemeld
+    worden en zou elk antwoord beweren dat hun `source`-URL niet open te
+    klikken is — wat niet waar is.
+    """
     components = []
     for repo in repos or []:
         url = urllib.parse.urlparse(repo["import_url"])
         params = urllib.parse.parse_qs(url.query)
         clone_url = f"{url.scheme}://{url.netloc}{url.path}"
         name = url.path.rstrip("/").rsplit("/", 1)[-1]
+        publication = str(repo.get("publication", "")).strip().lower()
+        if publication not in ("", "public", "internal"):
+            raise ValueError(
+                f"onbekende publication '{publication}' voor {name}; "
+                "gebruik 'public' of 'internal'")
         components.append(Component(
             name=name,
             clone_url=clone_url,
             branch=params.get("branch", ["main"])[0],
             docs_dir=params.get("docs_dir", ["docs/*"])[0].replace("/*", ""),
-            internal=internal,
+            internal=internal if not publication else publication == "internal",
         ))
     return components
 
