@@ -54,6 +54,10 @@ DEFAULTS = {
 
 WORK_DOMAIN = "conduction.nl"
 
+# Waar het EMK service-account vandaan komt. Staat ook in onboard.sh; hier
+# opnieuw omdat het label het in beeld moet zetten zonder een subprocess.
+CYSO_PORTAL = "https://my.cyso.cloud/login"
+
 
 def guess_name() -> str:
     """Voornaam voorvullen — alleen als de bron betrouwbaar is.
@@ -66,8 +70,8 @@ def guess_name() -> str:
 
     Daarom vullen we alleen voor bij een `@conduction.nl`-adres. Anders blijft
     het veld leeg: een leeg veld met een duidelijke hint is beter dan een
-    zelfverzekerd verkeerde naam, want die leidt tot een aanvraag bij Fuga voor
-    een bestand dat niemand kan gebruiken.
+    zelfverzekerd verkeerde naam, want die leidt tot een service-account in het
+    CYSO-portaal onder een naam die geen enkel script terugvindt.
     """
     try:
         out = subprocess.run(
@@ -212,8 +216,8 @@ class OnboardGui:
             self.emk_label.configure(text=f"{path}\nstaat er ✓", foreground="#1a7f37")
         else:
             self.emk_label.configure(
-                text=f"{path}\nontbreekt — vraag dit bestand aan bij Fuga Cloud en "
-                     f"zet het op precies dit pad",
+                text=f"{path}\nontbreekt — haal een EMK service-account op via "
+                     f"{CYSO_PORTAL} → Service accounts, en zet het op precies dit pad",
                 foreground="#b35900")
 
     # --- uitvoeren --------------------------------------------------------
@@ -349,6 +353,12 @@ def self_test() -> int:
             print(f"  FAIL default '{key}' ({value}) staat niet in onboard.sh", file=sys.stderr)
             failures += 1
 
+    # De portaal-URL staat noodgedwongen op twee plekken: het label moet hem in
+    # beeld zetten zonder een subprocess. Deze check houdt ze gelijk.
+    if CYSO_PORTAL not in script:
+        print(f"  FAIL portaal-URL '{CYSO_PORTAL}' staat niet in onboard.sh", file=sys.stderr)
+        failures += 1
+
     # De naamconventie moet uit het script komen, niet uit deze code.
     got = emk_path_for("thijn@conduction.nl")
     if not got.endswith("emk-sa-wh2mnkj_thijn-conduction.yml"):
@@ -372,7 +382,7 @@ def self_test() -> int:
         print("  FAIL uitvoeren zet --write-profile niet", file=sys.stderr)
         failures += 1
 
-    total = len(DEFAULTS) + 4
+    total = len(DEFAULTS) + 5
     print(f"zelftest: {total - failures} geslaagd, {failures} gefaald")
     return 0 if failures == 0 else 1
 

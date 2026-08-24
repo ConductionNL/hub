@@ -88,6 +88,9 @@ readonly KUBECONFIG_TTL="${KUBECONFIG_TTL:-86400}"
 readonly PROFILE_FILE="${PROFILE_FILE:-${HOME}/.bashrc}"
 readonly PLUGINS_DIR="${ROOT_DIR}/claude-plugins"
 readonly PROFILE_MARKER="# >>> conduction onboarding >>>"
+# Waar het EMK service-account vandaan komt. Het portaal is van CYSO; de
+# API-host eronder heet api.emk.fuga.cloud. Eén leverancier, twee namen.
+readonly CYSO_PORTAL="${CYSO_PORTAL:-https://my.cyso.cloud/login}"
 
 APPLY=false
 WRITE_PROFILE=false
@@ -254,8 +257,7 @@ check_emk() {
       return 0
     fi
     fail "verwacht bestand bestaat niet: ${expected}"
-    echo "     Vraag dit bestand aan bij Fuga Cloud en zet het op precies dit pad." >&2
-    echo "     Zie claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
+    emk_where_to_get
     return 1
   fi
 
@@ -270,12 +272,23 @@ check_emk() {
     fail "meer dan één emk-sa-bestand in ${KUBE_DIR} — geef --emk-name <voornaam> of zet EMK_KUBECONFIG"
   else
     fail "geen emk-sa-*.yml in ${KUBE_DIR}"
-    echo "     Dit is de enige stap die je met de hand moet regelen: vraag een EMK" >&2
-    echo "     service-account-kubeconfig aan bij Fuga Cloud en zet het in ${KUBE_DIR}." >&2
-    echo "     Met --emk-name <voornaam> noemt dit script het exacte pad dat het verwacht." >&2
-    echo "     Zie claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
+    emk_where_to_get
+    echo "     Met --emk-name <voornaam> noemt dit script het exacte pad." >&2
   fi
   return 1
+}
+
+# De enige stap die niet te automatiseren is, dus de enige plek waar het script
+# een mens moet vertellen wat hij zelf moet doen. Het portaal staat hier en niet
+# alleen in de docs: dit is het moment waarop iemand vastloopt, en dan is een
+# verwijzing naar een bestand in een andere repo een extra hindernis.
+emk_where_to_get() {
+  echo "     Dit is de enige stap die je met de hand regelt:" >&2
+  echo "       1. log in op ${CYSO_PORTAL}" >&2
+  echo "       2. ga naar Service accounts" >&2
+  echo "       3. haal daar een EMK service-account op" >&2
+  echo "       4. zet het bestand op het pad hierboven" >&2
+  echo "     Achtergrond: claude-plugins/docs/toolchain-runbook.md § Laag 1." >&2
 }
 
 # --- stap 3: de fleet ------------------------------------------------------

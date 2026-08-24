@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-24 (4) — het script wijst nu naar het CYSO-portaal
+
+`onboard.sh` en de GUI melden bij een ontbrekend EMK-bestand niet alleen wélk
+bestand er moet komen, maar ook waar je het haalt: inloggen op
+<https://my.cyso.cloud/login>, naar Service accounts, daar een EMK ophalen.
+
+Die URL staat in het script en niet alleen in de docs, omdat het moment waarop
+iemand dit nodig heeft precies het moment is waarop de check faalt — en dan is
+doorverwijzen naar een bestand in een andere repo een extra hindernis. De
+zelftest van de GUI controleert dat de URL op beide plekken gelijk is (8
+fixtures nu).
+
+Achtergrond en wat er nog niet vastligt (geldigheidsduur, portaalrechten,
+rotatie) staan in `claude-plugins/docs/toolchain-runbook.md` § Laag 1.
+
 ## 2026-08-24 (3) — GUI voor de onboarding, en de naamconventie vastgelegd
 
 `scripts/onboard_gui.py`: een venster met voorgevulde velden dat `onboard.sh`
